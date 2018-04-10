@@ -58,14 +58,13 @@ for i,_ in pa_df.iterrows():
     # find angles between neighbors
     pa_df.at[i, 'angles'] = [angle_between(pa_df.loc[i, 'centroid'], pa_df.loc[j, 'centroid']) for j in pa_df.loc[i, 'neighbors']]
 
-    direction = 1 # -1 is CW, 1 is CCW
+    direction = -1 # -1 is CW, 1 is CCW
     idx = np.argsort(direction*np.array(pa_df.at[i, 'angles'])) # find sort index based on angle
     pa_df.at[i, 'angles'] = [pa_df.at[i, 'angles'][j] for j in idx] # sort angles
     pa_df.at[i, 'neighbors'] = [pa_df.at[i, 'neighbors'][j] for j in idx] # sort neighbors
 
     # unparallelized:
     pa_df.at[i, 'shared_perims'] = [pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry']).length for j in pa_df.loc[i, 'neighbors']]
-
 
 #%%
 # attempt at parallelizing
@@ -87,7 +86,6 @@ for i,_ in pa_df.iterrows():
 # result
 
 #%%
-
 
 
 # drop full state bound
@@ -130,40 +128,39 @@ CDs.index = CDs.index.astype(int)
 
 #%%
 
-# TODO for speedup, try parallelizing. shortcuts using centroid distance won't work. geopandas overlay is extremely slow even for just a few shapes.
-counter = 0
-interval = np.floor(len(pa_df) * .05)
-for i, precinct in pa_df.iterrows():
-    if counter % interval == 0:
-        pct_done = counter/len(pa_df)
-        print(str(counter) + '/' + str(len(pa_df))  + ' ' + str(round(pct_done*100, 4)) + '% complete' )
-    counter += 1
-    frac_area_CD = {}
-    found_majority = False
+# construct r-tree spatial index
+si = CDs.sindex
 
-    # for each CD, record the fractional overlap between precincts and CDs. Skip ahead when you find one above 50% overlap
-    for j, CD in CDs.iterrows():
-        if found_majority==False:
-            frac_area = CD['geometry'].intersection(precinct['geometry']).area / precinct['area']
-            if frac_area > .5:
-                found_majority = True
-        else:
-            frac_area = np.nan
-        frac_area_CD[j] = frac_area
+for i, _ in pa_df.iterrows():
+    precinct = pa_df.loc[i, 'geometry']
 
-    pa_df.loc[i, 'frac_area_CD'] = [frac_area_CD]
-    pa_df.loc[i, 'max_CD'] = max(frac_area_CD.items(), key=operator.itemgetter(1))[0]
-    pa_df.loc[i, 'max_CD_frac'] = frac_area_CD[pa_df.loc[i, 'max_CD']]
-#%%
+    # check to see which possible CD intersections exist
+    poss_CD = [CDs.index[i] for i in list(si.intersection(precinct.bounds))]
+    if len(poss_CD) == 1:
+        CD = poss_CD[0]
+    else:
+        # for cases with multiple matches, compare fractional area
+        frac_area = {}
+        found_majority = False
+        for j in poss_CD:
+            if not found_majority:
+                area = CDs.loc[j, 'geometry'].intersection(precinct).area / precinct.area
+                if area > .5:
+                    found_majority = True
+                frac_area[j] = area
+        CD = max(frac_area.items(), key=operator.itemgetter(1))[0]
+
+    pa_df.loc[i, 'CD'] = str(CD)
+
 
 pa_df['sequential'] = range(len(pa_df))
 seq_map = pa_df['sequential'].to_dict()
 
 for i in [2851, 2852, 2853]:
-    pa_df.loc[pa_df['sequential']==i, 'max_CD'] = 7
+    pa_df.loc[pa_df['sequential']==i, 'CD'] = '7'
     # NOTE: the problem here is that these three are contained in a non-contiguous precinct; oy
 
-pa_df.to_pickle('padf_ccw.pickle')
+pa_df.to_pickle('padf_cw.pickle')
 # pa_df = pd.read_pickle('padf.pickle')
 
 
@@ -173,12 +170,8 @@ for i, _ in pa_df.iterrows():
 
 #%%
 
-pa_df.head(1)['neighbors'].values[0]
-
-pa_df.head(1)['shared_perims'].values[0]
-pa_df.loc['42133380']
 # write out in the format of Pegden
-f = open('test0229_cw.txt', 'w')
+f = open('chain_cw.txt', 'w')
 f.write('precinctlistv01\n' + str(len(pa_df)) + '\n' + '\tnb\tsp\tunshared\tarea\tpop\tvoteA\tvoteB\tcongD\n')
 
 def convert_geoid(x):
@@ -202,7 +195,7 @@ for _, row in pa_df.iterrows():
         for i in row['shared_perims'][1:]:
             f.write(',' + str(i))
 
-    f.write('\t0\t' + str(row['area']) + '\t' + str(round(row['POP100'])) + '\t' + str(round(row['USSDV2010'])) + '\t' + str(round(row['USSRV2010'])) + '\t' + str(round(row['max_CD'])))
+    f.write('\t0\t' + str(row['area']) + '\t' + str(round(row['POP100'])) + '\t' + str(round(row['USSDV2010'])) + '\t' + str(round(row['USSRV2010'])) + '\t' + row['CD'])
     f.write('\n')
 
 
