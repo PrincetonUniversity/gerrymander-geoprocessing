@@ -1,32 +1,28 @@
 import pandas as pd
+import pysal as ps
+import numpy as np
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
-from itertools import compress
 import re
-# for reading and processing shapefiles
-import pysal as ps
-import shapely.geometry as geom
 import operator
-import multiprocessing
-import numpy as np
-from functools import partial
-import geopandas as gpd
+# import multiprocessing
+# from functools import partial
+
 # %load_ext autoreload
 # %autoreload 2 # autoreload all modules every time you run code
 # %autoreload 0 # turn off autoreload
 
 pgp = '/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/'
 
-#%%
-
+############################################
+###### LOAD SHAPES #########################
+############################################
 
 # load PA whole state shape
 states = gpd.read_file(pgp + 'mapping/all_state_boundaries/tl_2017_us_state.shp')
 pa_bound = states.loc[states['NAME']=='Pennsylvania', 'geometry'].values[0]
-
-
-
 
 # load PA district shapes, append PA whole state
 pa_df = gpd.read_file(pgp + 'mapping/PA/dataverse/pa_final.shp')
@@ -41,12 +37,18 @@ for i, _ in pa_df.iterrows():
     pa_df.loc[i, 'perimeter'] = poly.length
     pa_df.at[i, 'centroid'] = poly.centroid
 
-# rook contiguity
+############################################
+###### ROOK CONTIGUITY######################
+############################################
+
 w = ps.weights.Rook.from_dataframe(pa_df, geom_col='geometry')
 
 pa_df['neighbors'] = pd.Series(dtype=object)
 pa_df['shared_perims'] = pd.Series(dtype=object)
 pa_df['angles'] = pd.Series(dtype=object)
+
+# sort neighbors by angle
+# TODO: angle probably is not a robust solution
 
 def angle_between(centroid1, centroid2):
     lldiff = np.array(centroid1.coords[0]) - np.array(centroid2.coords[0])
@@ -66,7 +68,7 @@ for i,_ in pa_df.iterrows():
     # unparallelized:
     pa_df.at[i, 'shared_perims'] = [pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry']).length for j in pa_df.loc[i, 'neighbors']]
 
-#%%
+
 # attempt at parallelizing
 # cores = 8
 # chunks = np.array_split(pa_df[['neighbors', 'shapely']], cores)
@@ -85,15 +87,17 @@ for i,_ in pa_df.iterrows():
 # pool.close()
 # result
 
-#%%
-
 
 # drop full state bound
 pa_df = pa_df.drop('PA_bound')
 
+
+#############################################################################
+###### PROCESS PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS (donut holes) ###
+#############################################################################
+
 capture_cols = ['VAP', 'POP100', 'area', '(?:USP|USS|USC|GOV|STS|STH)[DR]V[0-9]{4}']
 capture_cols = [i for i in pa_df.columns if any([re.match(j, i) for j in capture_cols])]
-
 
 # get IDs of donut holes
 donut_holes = pa_df[pa_df['neighbors'].apply(len)==1].index
@@ -121,7 +125,10 @@ for i, _ in pa_df.iterrows():
         pa_df.loc[i, 'neighbors'][on_bound.index(True)] = counter
         counter -= 1
 
-# ASSIGN CDs based on area
+############################################
+###### ASSIGN CONG. DISTRICTS TO PRECINCTS #
+############################################
+
 CDs = gpd.read_file(pgp + 'mapping/115th congress shapefiles/tl_2016_us_cd115.shp').set_index('CD115FP')
 CDs = CDs.loc[CDs['STATEFP']=='42']
 CDs.index = CDs.index.astype(int)
@@ -153,6 +160,10 @@ for i, _ in pa_df.iterrows():
     pa_df.loc[i, 'CD'] = str(CD)
 
 
+############################################
+###### TOUCH-UPS ###########################
+############################################
+
 pa_df['sequential'] = range(len(pa_df))
 seq_map = pa_df['sequential'].to_dict()
 
@@ -170,7 +181,10 @@ for i, _ in pa_df.iterrows():
 
 #%%
 
-# write out in the format of Pegden
+############################################
+###### EXPORT ##############################
+############################################
+
 f = open('chain_cw.txt', 'w')
 f.write('precinctlistv01\n' + str(len(pa_df)) + '\n' + '\tnb\tsp\tunshared\tarea\tpop\tvoteA\tvoteB\tcongD\n')
 
