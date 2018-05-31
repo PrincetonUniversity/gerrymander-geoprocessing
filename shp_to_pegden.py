@@ -14,7 +14,7 @@ import operator
 # %autoreload 2 # autoreload all modules every time you run code
 # %autoreload 0 # turn off autoreload
 
-pgp = '/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/'
+pgp = 'G:/Team Drives/princeton_gerrymandering_project/'
 
 ############################################
 ###### LOAD SHAPES #########################
@@ -223,3 +223,28 @@ peg_df = pd.read_csv(pgp + 'pegden_algo/InputPA.txt',
 peg_df = peg_df.astype(dtype={'src': str, 'nbr': str})
 peg_df['nbr'] = peg_df['nbr'].apply(lambda x: x.split(','))
 peg_df['shared_perim'] = peg_df['shared_perim'].apply(lambda x: [float(i) for i in x.split(',')])
+#%%
+
+# cross reference populations and areas to get number of each precinct in Pegden's inputPA.txt
+# for use in arcgis to see if there is a method to how he ordered the neighbors 
+def getPegdenNumbers():
+    numPrecincts = 9048
+    pegdenNumbers = dict()
+    pa_pop = np.array(pa_df['POP100'])
+    peg_pop = np.array(peg_df['pop'])
+    pop = np.where(peg_pop == pa_pop[: , np.newaxis])
+
+    for i in range(len(pop[0])):
+        j = pop[0][i]
+        k = pop[1][i]
+        if abs(peg_df['area'][k]/pa_df['area'][j] - 1) < 0.00001:
+            pegdenNumbers[j] = k
+            
+    result = []
+    for i in range(numPrecincts):
+        if i in pegdenNumbers.keys():
+            result.append(pegdenNumbers[i])
+        else:
+            result.append('*')
+    return result
+            
