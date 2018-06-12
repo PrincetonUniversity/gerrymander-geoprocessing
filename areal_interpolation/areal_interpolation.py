@@ -3,6 +3,8 @@ import operator
 
 def aggregate(source, target, source_columns, target_columns=None, method='fractional_area', spatial_index=True):
     """Function to (a) aggregate characteristics of source polygons (e.g., vote totals of election precincts) up into target polygons (e.g., hypothetical district maps) and (b) label source polygons by which target polygon they most overlap with.
+def aggregate(source, target, source_columns=None, target_columns=None, method='fractional_area', spatial_index=True):
+    """Function to (a) aggregate characteristics of source polygons (e.g., vote totals of election precincts) up into target polygons (e.g., hypothetical district maps) and/or (b) label source polygons by which target polygon they most overlap with.
 
     Arguments
     ---------
@@ -10,7 +12,7 @@ def aggregate(source, target, source_columns, target_columns=None, method='fract
         GeoDataFrame consisting of small polygons with associated columns of data.
     target: GeoPandas GeoDataFrame
         GeoPandas GeoDataFrame consisting of target polygons.
-    source_columns: list
+    source_columns: list, default None
         List of the names of columns of source data that should be aggregated up into target. These are values that will be summed, like population or vote total.
     target_columns: list, default None
         List of the names of the columns of the target data that should be used to label source polygons. These should be labels, like Census GEOID. If None, use the index of target.
@@ -37,8 +39,11 @@ def aggregate(source, target, source_columns, target_columns=None, method='fract
 
     # add empty columns to be filled in
     source = pd.concat([source, pd.DataFrame(columns=target_columns)])
-    target = pd.concat([target, pd.DataFrame(columns=source_columns)])
-    target[source_columns] = 0
+    source = pd.concat([source, pd.DataFrame(columns=target_columns)], sort=False)
+    target = pd.concat([target, pd.DataFrame(columns=source_columns)], sort=False)
+    
+    if source_columns is not None:
+        target[source_columns] = 0
 
 
     if spatial_index:
@@ -81,12 +86,13 @@ def aggregate(source, target, source_columns, target_columns=None, method='fract
                 source.loc[i, col] = target.loc[match, col]
         else:
             source.loc[i, 'target_index'] = match
-
-        for col in source_columns:
-            if method == 'fractional_area':
-                for j in possible_matches:
-                    target.loc[j, col] += source.loc[i, col] * frac_area[j]
-            else:
-                target.loc[match, col] += source.loc[i, col]
+        
+        if source_columns is not None:
+            for col in source_columns:
+                if method == 'fractional_area':
+                    for j in possible_matches:
+                        target.loc[j, col] += source.loc[i, col] * frac_area[j]
+                else:
+                    target.loc[match, col] += source.loc[i, col]
 
     return source, target
