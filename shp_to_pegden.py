@@ -4,6 +4,8 @@ import numpy as np
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import shapely as shp
+from shapely.geometry import MultiLineString
 sns.set()
 import re
 import operator
@@ -37,6 +39,7 @@ for i, _ in pa_df.iterrows():
     pa_df.loc[i, 'perimeter'] = poly.length
     pa_df.at[i, 'centroid'] = poly.centroid
 
+#%%
 ############################################
 ###### ROOK CONTIGUITY######################
 ############################################
@@ -45,51 +48,11 @@ w = ps.weights.Rook.from_dataframe(pa_df, geom_col='geometry')
 
 pa_df['neighbors'] = pd.Series(dtype=object)
 pa_df['shared_perims'] = pd.Series(dtype=object)
-pa_df['angles'] = pd.Series(dtype=object)
-
-# sort neighbors by angle
-# TODO: angle probably is not a robust solution
-
-def angle_between(centroid1, centroid2):
-    lldiff = np.array(centroid1.coords[0]) - np.array(centroid2.coords[0])
-    return np.arctan2(lldiff[1], lldiff[0])
 
 for i,_ in pa_df.iterrows():
     pa_df.at[i, 'neighbors'] = w.neighbors[i]
 
-    # find angles between neighbors
-    pa_df.at[i, 'angles'] = [angle_between(pa_df.loc[i, 'centroid'], pa_df.loc[j, 'centroid']) for j in pa_df.loc[i, 'neighbors']]
-
-    direction = -1 # -1 is CW, 1 is CCW
-    idx = np.argsort(direction*np.array(pa_df.at[i, 'angles'])) # find sort index based on angle
-    pa_df.at[i, 'angles'] = [pa_df.at[i, 'angles'][j] for j in idx] # sort angles
-    pa_df.at[i, 'neighbors'] = [pa_df.at[i, 'neighbors'][j] for j in idx] # sort neighbors
-
-    # unparallelized:
-    pa_df.at[i, 'shared_perims'] = [pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry']).length for j in pa_df.loc[i, 'neighbors']]
-
-
-# attempt at parallelizing
-# cores = 8
-# chunks = np.array_split(pa_df[['neighbors', 'shapely']], cores)
-# polygons = pa_df['shapely'].to_dict()
-# neighbors = [i['neighbors'].to_dict() for i in chunks]
-#
-# def f(polygons, neighbors):
-#     y = {}
-#     for vtd, nb in neighbors.items():
-#         y[vtd] = [polygons[vtd].intersection(polygons[j]).length for j in nb]# df.loc[i, 'shared_perims'] = [polygons[i].intersection(polygons.loc[j]).length for j in df.loc[i, 'neighbors']]
-#     return df
-#     # figure out why (i) i can't get this to use all cores, and (ii) why i have extra trouble doing it with pandas
-#
-# pool = multiprocessing.Pool(processes=cores) # declare pool after function
-# result = pool.map(partial(f, polygons=polygons), chunks)
-# pool.close()
-# result
-
-
-# drop full state bound
-pa_df = pa_df.drop('PA_bound')
+#%%
 
 
 #############################################################################
@@ -113,18 +76,72 @@ for donut_hole in donut_holes:
     # remove neighbor reference to donut hole
     donut_hole_index = pa_df.loc[donut, 'neighbors'].index(donut_hole)
     del(pa_df.loc[donut, 'neighbors'][donut_hole_index])
-    del(pa_df.loc[donut, 'shared_perims'][donut_hole_index])
 
 # the holes are gone
 pa_df = pa_df.drop(donut_holes)
 
+
+
+
+#%%
+
+################################################
+###### PUT NEIGHBOR LISTS IN CLOCKWISE ORDER ###
+################################################
+
+pa_df.loc['PA_bound', 'geometry'] = pa_df.loc['PA_bound', 'geometry'].boundary
+d = dict()
+for i,_ in pa_df.iterrows():
+    d[i] = [pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry']) for j in pa_df.loc[i, 'neighbors']]
+#%%
+d = dict()
+for i,_ in pa_df.iterrows():
+    d[i] = []
+    for j in pa_df.loc[i, 'neighbors']:
+        shape = pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry'])
+        if shape.type == 'MultiLineString':
+            new_shape = shp.ops.linemerge(shape)
+            # TODO append LineStrings instead
+                d[i].append(new_shape)
+        elif shape.type == 'LineString':
+            d[i].append(shape)
+        elif shape.type == 'GeometryCollection':
+            lines = []
+            for k in shape.geoms:
+                if k.type == 'LineString':
+                    lines.append(k)
+            if len(lines) == 1:
+                d[i].append(lines[0])
+            elif len(lines)> 1:
+                d[i].append(shp.ops.linemerge(MultiLineString(lines)))
+            else:
+                print('Uh oh, no lines!')
+                print(i)
+                print(j)
+        else:
+            print('Unexpected type')
+            print(i)
+            print(j)
+
+#%%
+shape = []
+for i in d.keys():
+    for j in d[i]:
+        if j.type == 'MultiLineString' and len(j.geoms) > 4:
+            shape.append(j)
+
+#%%
+# drop full state bound
 counter = -1
 for i, _ in pa_df.iterrows():
     on_bound = ['PA_bound'==s for s in pa_df.loc[i, 'neighbors']]
     if any(on_bound):
         pa_df.loc[i, 'neighbors'][on_bound.index(True)] = counter
         counter -= 1
+        
 
+pa_df = pa_df.drop('PA_bound')
+#%%
 ############################################
 ###### ASSIGN CONG. DISTRICTS TO PRECINCTS #
 ############################################
@@ -178,6 +195,26 @@ pa_df.to_pickle('padf_cw.pickle')
 for i, _ in pa_df.iterrows():
     for col in ['neighbors', 'shared_perims']:
         pa_df.loc[i, col].reverse()
+        
+#%%    
+# cross reference populations and areas to get number of each precinct in Pegden's inputPA.txt
+# for use in arcgis to see if there is a method to how he ordered the neighbors 
+def getPegdenNumbers():
+    numPrecincts = len(pa_df)
+    pegdenNumbers = dict()
+    pa_pop = np.array(pa_df['POP100'])
+    peg_pop = np.array(peg_df['pop'])
+    pop = np.where(peg_pop == pa_pop[: , np.newaxis])
+
+    for i in range(len(pop[0])):
+        j = pop[0][i]
+        k = pop[1][i]
+        if abs(peg_df['area'][k] - pa_df['area'][j]) < 1e-12:
+            pegdenNumbers[j] = k
+             
+    return [pegdenNumbers[i] if i in pegdenNumbers.keys() else '*' for i in range(numPrecincts)]
+    
+#%%
 
 #%%
 
@@ -212,7 +249,7 @@ for _, row in pa_df.iterrows():
     f.write('\t0\t' + str(row['area']) + '\t' + str(round(row['POP100'])) + '\t' + str(round(row['USSDV2010'])) + '\t' + str(round(row['USSRV2010'])) + '\t' + row['CD'])
     f.write('\n')
 
-
+f.close()
 
 #%%
 # for comparison, load in Pegden data
@@ -225,26 +262,5 @@ peg_df['nbr'] = peg_df['nbr'].apply(lambda x: x.split(','))
 peg_df['shared_perim'] = peg_df['shared_perim'].apply(lambda x: [float(i) for i in x.split(',')])
 #%%
 
-# cross reference populations and areas to get number of each precinct in Pegden's inputPA.txt
-# for use in arcgis to see if there is a method to how he ordered the neighbors 
-def getPegdenNumbers():
-    numPrecincts = 9048
-    pegdenNumbers = dict()
-    pa_pop = np.array(pa_df['POP100'])
-    peg_pop = np.array(peg_df['pop'])
-    pop = np.where(peg_pop == pa_pop[: , np.newaxis])
 
-    for i in range(len(pop[0])):
-        j = pop[0][i]
-        k = pop[1][i]
-        if abs(peg_df['area'][k]/pa_df['area'][j] - 1) < 0.00001:
-            pegdenNumbers[j] = k
-            
-    result = []
-    for i in range(numPrecincts):
-        if i in pegdenNumbers.keys():
-            result.append(pegdenNumbers[i])
-        else:
-            result.append('*')
-    return result
             
