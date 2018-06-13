@@ -2,8 +2,9 @@ import pandas as pd
 import operator
 
 def aggregate(source, target, source_columns=None, target_columns=None, method='fractional_area', spatial_index=True):
-    """Function to (a) aggregate characteristics of source polygons (e.g., vote totals of election precincts) up into target polygons (e.g., hypothetical district maps) and/or (b) label source polygons by which target polygon they most overlap with.
     """
+    Function to (a) aggregate characteristics of source polygons (e.g., vote totals of election precincts) up into target polygons (e.g., hypothetical district maps) and/or (b) label source polygons by which target polygon they most overlap with.
+    
 
     Arguments
     ---------
