@@ -90,30 +90,52 @@ pa_df = pa_df.drop(donut_holes)
 ################################################
 
 pa_df.loc['PA_bound', 'geometry'] = pa_df.loc['PA_bound', 'geometry'].boundary
-d = dict()
-for i,_ in pa_df.iterrows():
-    d[i] = [pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry']) for j in pa_df.loc[i, 'neighbors']]
+
 #%%
-d = dict()
+precincts = dict()
 for i,_ in pa_df.iterrows():
-    d[i] = []
+    precincts[i] = dict()
+    precincts[i]['boundary'] = pa_df.loc[i, 'geometry'].boundary
+    precincts[i]['lines'] = []
+    precincts[i]['neighbors'] = []
+    precincts[i]['used'] = []
     for j in pa_df.loc[i, 'neighbors']:
         shape = pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry'])
         if shape.type == 'MultiLineString':
             new_shape = shp.ops.linemerge(shape)
-            # TODO append LineStrings instead
-                d[i].append(new_shape)
+            if new_shape.type == 'LineString':
+                precincts[i]['lines'].append(new_shape)
+                precincts[i]['neighbors'].append(j)
+                precincts[i]['used'].append(False)
+            else:
+                for line in new_shape.geoms:
+                    precincts[i]['lines'].append(line)
+                    precincts[i]['neighbors'].append(j)
+                    precincts[i]['used'].append(False)
         elif shape.type == 'LineString':
-            d[i].append(shape)
+            precincts[i]['lines'].append(shape)
+            precincts[i]['neighbors'].append(j)
+            precincts[i]['used'].append(False)
         elif shape.type == 'GeometryCollection':
             lines = []
             for k in shape.geoms:
                 if k.type == 'LineString':
                     lines.append(k)
             if len(lines) == 1:
-                d[i].append(lines[0])
+                precincts[i]['lines'].append(lines[0])
+                precincts[i]['neighbors'].append(j)
+                precincts[i]['used'].append(False)
             elif len(lines)> 1:
-                d[i].append(shp.ops.linemerge(MultiLineString(lines)))
+                new_shape = shp.ops.linemerge(MultiLineString(lines))
+                if new_shape.type == 'LineString':
+                    precincts[i]['lines'].append(new_shape)
+                    precincts[i]['neighbors'].append(j)
+                    precincts[i]['used'].append(False)
+                else:
+                    for line in new_shape.geoms:
+                        precincts[i]['lines'].append(line)
+                        precincts[i]['neighbors'].append(j)
+                        precincts[i]['used'].append(False)
             else:
                 print('Uh oh, no lines!')
                 print(i)
