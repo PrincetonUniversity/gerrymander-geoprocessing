@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import shapely as shp
 from shapely.geometry import MultiLineString
+from shapely.geometry import LinearRing
+from shapely.geometry import Point
 sns.set()
 import re
 import operator
@@ -38,6 +40,26 @@ for i, _ in pa_df.iterrows():
     pa_df.loc[i, 'area'] = poly.area
     pa_df.loc[i, 'perimeter'] = poly.length
     pa_df.at[i, 'centroid'] = poly.centroid
+    
+    #%%
+#############################################################################
+###### SPLIT NON-CONTIGUOUS PRECINCTS ###
+#############################################################################
+
+# From Pegden's SI Text
+#79 precincts that were not contiguous were split into
+#continuous areas, with voting and population data distributed
+#proportional to the area
+
+capture_cols = ['VAP', 'POP100', '(?:USP|USS|USC|GOV|STS|STH)[DR]V[0-9]{4}']
+capture_cols = [i for i in pa_df.columns if any([re.match(j, i) for j in capture_cols])]
+
+def non_contiguous(geom):
+    return geom.type == 'MultiPolygon'
+
+# find non-contiguous precincts
+non_contiguous = pa_df[pa_df['geometry'].apply(non_contiguous)==True].index
+
 
 #%%
 ############################################
@@ -83,6 +105,7 @@ pa_df = pa_df.drop(donut_holes)
 
 
 
+
 #%%
 
 ################################################
@@ -90,7 +113,6 @@ pa_df = pa_df.drop(donut_holes)
 ################################################
 
 pa_df.loc['PA_bound', 'geometry'] = pa_df.loc['PA_bound', 'geometry'].boundary
-
 #%%
 precincts = dict()
 for i,_ in pa_df.iterrows():
@@ -146,12 +168,28 @@ for i,_ in pa_df.iterrows():
             print(j)
 
 #%%
-shape = []
-for i in d.keys():
-    for j in d[i]:
-        if j.type == 'MultiLineString' and len(j.geoms) > 4:
-            shape.append(j)
+# get the neighbors in order, possibly with duplicates
 
+def getEndpoints(line_string):
+    return [Point(line_string.xy[0][0], line_string.xy[1][0]), Point(line_string.xy[0][1], line_string.xy[1][1])]
+ #%%
+for i,_ in pa_df.iterrows():
+    num_lines = len(precincts[i]['lines'])
+    if len(num_lines <= 1):
+        print ('Shoulda been a donut')
+        continue
+    
+    new_neighbors = []
+    new_lines = []
+    index = 0
+    
+    for j in range(num_lines):
+        new_neighbors.append(precincts['neighbors'][index])
+        new_lines.append(precincts['lines'][index])
+        endpoints = getEndpoints(precincts['lines'][index])
+        
+
+    
 #%%
 # drop full state bound
 counter = -1
