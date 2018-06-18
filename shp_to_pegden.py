@@ -43,23 +43,52 @@ for i, _ in pa_df.iterrows():
     
     #%%
 #############################################################################
-###### SPLIT NON-CONTIGUOUS PRECINCTS ###
+###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)###
 #############################################################################
 
 # From Pegden's SI Text
-#79 precincts that were not contiguous were split into
-#continuous areas, with voting and population data distributed
-#proportional to the area
+# 79 precincts that were not contiguous were split into
+# continuous areas, with voting and population data distributed
+# proportional to the area
 
-capture_cols = ['VAP', 'POP100', '(?:USP|USS|USC|GOV|STS|STH)[DR]V[0-9]{4}']
+capture_cols = ['area', 'VAP', 'POP100', '(?:USP|USS|USC|GOV|STS|STH)[DR]V[0-9]{4}']
 capture_cols = [i for i in pa_df.columns if any([re.match(j, i) for j in capture_cols])]
 
 def non_contiguous(geom):
     return geom.type == 'MultiPolygon'
 
 # find non-contiguous precincts
-non_contiguous = pa_df[pa_df['geometry'].apply(non_contiguous)==True].index
+archipelagos = pa_df[pa_df['geometry'].apply(non_contiguous)==True].index
 
+temp_pa_df = pd.DataFrame()
+
+for archipelago in archipelagos:
+    precinct = pa_df.loc[archipelago]['geometry']
+    area = pa_df.loc[archipelago]['area']
+    count = 0 # used for naming new precincts
+    for region in precinct.geoms:
+        new_index  = str(archipelago) + '_' + str(count)
+        d = dict()
+        d['GEOID10'] = new_index
+        d['geometry']=region
+        
+        # adjust relevant fields by area proportion
+        proportion = region.area/area
+        for col in capture_cols:
+            d[col] = proportion * pa_df.loc[archipelago][col]
+        
+        # an island declares its independence from the archipelago
+        temp_pa_df = temp_pa_df.append(d, ignore_index = True)
+        count = count + 1
+
+# set index of temp dataframe to match original
+temp_pa_df = temp_pa_df.set_index('GEOID10')
+
+# merge datatframes
+pa_df = pa_df.append(temp_pa_df)
+
+# delete original precinct
+pa_df = pa_df.drop(archipelagos)
 
 #%%
 ############################################
@@ -115,38 +144,52 @@ pa_df = pa_df.drop(donut_holes)
 pa_df.loc['PA_bound', 'geometry'] = pa_df.loc['PA_bound', 'geometry'].boundary
 #%%
 precincts = dict()
+# iterate over precincts
 for i,_ in pa_df.iterrows():
-    precincts[i] = dict()
+    precincts[i] = dict() # lines, neighbors, used indexed the same
     precincts[i]['boundary'] = pa_df.loc[i, 'geometry'].boundary
     precincts[i]['lines'] = []
     precincts[i]['neighbors'] = []
-    precincts[i]['used'] = []
+    precincts[i]['used'] = []  # has been used in the reordering process so far
+    
+    # iterate over neighbors
     for j in pa_df.loc[i, 'neighbors']:
-        shape = pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry'])
+        shape = pa_df.loc[i, 'geometry'].intersection(pa_df.loc[j, 'geometry'])  # get bounday between precinct and neighbor
         if shape.type == 'MultiLineString':
-            new_shape = shp.ops.linemerge(shape)
+            new_shape = shp.ops.linemerge(shape)  # merge connected LineStrings
+            
+            # if we get just one LineString, add it to the list
             if new_shape.type == 'LineString':
                 precincts[i]['lines'].append(new_shape)
                 precincts[i]['neighbors'].append(j)
                 precincts[i]['used'].append(False)
+            # otherwise, add all LineStrings to the list
             else:
                 for line in new_shape.geoms:
                     precincts[i]['lines'].append(line)
                     precincts[i]['neighbors'].append(j)
                     precincts[i]['used'].append(False)
+                    
         elif shape.type == 'LineString':
             precincts[i]['lines'].append(shape)
             precincts[i]['neighbors'].append(j)
             precincts[i]['used'].append(False)
-        elif shape.type == 'GeometryCollection':
+
+        elif shape.type == 'GeometryCollection':  # LineStrings and Points
+            
+            # get all LineStrings
             lines = []
             for k in shape.geoms:
                 if k.type == 'LineString':
                     lines.append(k)
+                    
+            # if there is only one, add it to the list
             if len(lines) == 1:
                 precincts[i]['lines'].append(lines[0])
                 precincts[i]['neighbors'].append(j)
                 precincts[i]['used'].append(False)
+                
+            # otherwise, create a MultilineString and proceed as above
             elif len(lines)> 1:
                 new_shape = shp.ops.linemerge(MultiLineString(lines))
                 if new_shape.type == 'LineString':
