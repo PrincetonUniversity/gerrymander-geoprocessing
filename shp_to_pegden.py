@@ -224,7 +224,7 @@ for i,_ in pa_df.iterrows():
         
 # Connor+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 for i,_ in pa_df.iterrows():
-    num_lines = len(precints[i]['lines'])
+    num_lines = len(precincts[i]['lines'])
     # Check for donut
     if len(num_lines <= 1):
         print('Should have been identified as a donut')
@@ -232,29 +232,29 @@ for i,_ in pa_df.iterrows():
 
     # Initialize list of neighbors and lines in clockwise order
     # Let first neighbor/line be starting value
-    new_neighbors = [precints[i]['neighbors'][0]]
+    new_neighbors = [precincts[i]['neighbors'][0]]
     new_lines = [precincts[i]['lines'][0]]
     index = 0
 
     # Set first neighbor/line to true
-    precints[i]['used'][0] = True
+    precincts[i]['used'][0] = True
 
     # Set the current endpoint
-    curr_endpt = getEndpoints(precints[i]['lines'][0])[0]
+    curr_endpt = getEndpoints(precincts[i]['lines'][0])[0]
 
     # Find a (counter-)clockwise order for the neighbors of the precinct
     # Loop until every neighbor has been used
-    while(all(precincts[i]['lines'])):
+    while(not all(precincts[i]['used'])):
 
         # Set minimum distance to -1 to initialize
         min_dist = -1
 
         # Find unused indexes for neighbors/lines
-        unused_ix = [i for i, x in enumerate(precints[i]['used']) if x==False]
+        unused_ix = [i for i, x in enumerate(precincts[i]['used']) if x==False]
         # Iterate through unused neighbors/lines
         for j in unused_ix:
             # Obtain endpoints and distances for line we are checking
-            check_endpts = getEndpoints(precints[i]['lines'][j])
+            check_endpts = getEndpoints(precincts[i]['lines'][j])
             dist_endpt = [curr_endpt.distance(check_endpts[0]), 
                             curr_endpt.distance(check_endpts[1])]
 
@@ -262,7 +262,7 @@ for i,_ in pa_df.iterrows():
             # current endpoint, update the minimum distance, set index 
             # (neighbor) to this line, update proposed next endpoint to become 
             # current endpoint
-            if(min(dist_endpt) < min_dist || min_dist == -1):
+            if(min(dist_endpt) < min_dist or min_dist == -1):
                 min_dist = min(dist_endpt)
                 index = j
                 # Endpoint furthest from the current endpoint
@@ -271,7 +271,7 @@ for i,_ in pa_df.iterrows():
         # Update the new list of lines and neighbors. Set used = True
         new_neighbors.append(precincts[i]['neighbors'][index])
         new_lines.append(precincts['lines'][index])
-        precints[i]['used'][index] = True
+        precincts[i]['used'][index] = True
 
         # Update the current endpoint to the far endpoint of the closest line
         curr_endpt = next_endpt
@@ -300,7 +300,7 @@ for i,_ in pa_df.iterrows():
         curr_endpt_ring = p2
 
     # Create the linear rings in both direction
-    lin_ring = LinearRing(endpts_ring)
+    lring1 = LinearRing(endpts_ring)
     lring2 = LinearRing(list(reversed(endpts_ring)))
 
     # Check Linear Ring Orientation
