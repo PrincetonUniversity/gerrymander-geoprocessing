@@ -215,18 +215,12 @@ for i,_ in pa_df.iterrows():
 def getEndpoints(line_string):
     return [Point(line_string.xy[0][0], line_string.xy[1][0]), Point(line_string.xy[0][1], line_string.xy[1][1])]
  #%%
-for i,_ in pa_df.iterrows():
-    num_lines = len(precincts[i]['lines'])
-    if len(num_lines <= 1):
-        print ('Shoulda been a donut')
-        continue
 
-        
 # Connor+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 for i,_ in pa_df.iterrows():
     num_lines = len(precincts[i]['lines'])
     # Check for donut
-    if len(num_lines <= 1):
+    if num_lines <= 1:
         print('Should have been identified as a donut')
         continue
 
@@ -270,7 +264,7 @@ for i,_ in pa_df.iterrows():
 
         # Update the new list of lines and neighbors. Set used = True
         new_neighbors.append(precincts[i]['neighbors'][index])
-        new_lines.append(precincts['lines'][index])
+        new_lines.append(precincts[i]['lines'][index])
         precincts[i]['used'][index] = True
 
         # Update the current endpoint to the far endpoint of the closest line
@@ -301,6 +295,7 @@ for i,_ in pa_df.iterrows():
 
     # Create the linear rings in both direction
     lring1 = LinearRing(endpts_ring)
+    lring1 = [pt.coords[0] for pt in lring1]
     lring2 = LinearRing(list(reversed(endpts_ring)))
 
     # Check Linear Ring Orientation
@@ -308,15 +303,12 @@ for i,_ in pa_df.iterrows():
         # since normal order is ccw, we must reverse orders
         new_neighbors = list(reversed(new_neighbors))
         new_lines = list(reversed(new_lines))
-    elif lring2.is_ccw:
-        # reverse order is ccw, so lists are fine as is
-    else:
+    elif not lring2.is_ccw:
         print('ERROR: Did not obtain a correct order')
         print(i)
 
-    # Set new neighbors and new lines
-    precincts[i]['neighbors'] = new_neighbors
-    precincts[i]['lines'] = new_lines
+    # Set new neighbors
+    pa_df.loc[i]['neighbors'] = new_neighbors
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
@@ -374,8 +366,8 @@ for i, _ in pa_df.iterrows():
 pa_df['sequential'] = range(len(pa_df))
 seq_map = pa_df['sequential'].to_dict()
 
-for i in [2851, 2852, 2853]:
-    pa_df.loc[pa_df['sequential']==i, 'CD'] = '7'
+# for i in [2851, 2852, 2853]:
+#    pa_df.loc[pa_df['sequential']==i, 'CD'] = '7'
     # NOTE: the problem here is that these three are contained in a non-contiguous precinct; oy
 
 pa_df.to_pickle('padf_cw.pickle')
