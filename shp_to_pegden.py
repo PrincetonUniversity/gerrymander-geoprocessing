@@ -14,6 +14,8 @@ import operator
 # import multiprocessing
 # from functools import partial
 
+# test2
+
 # %load_ext autoreload
 # %autoreload 2 # autoreload all modules every time you run code
 # %autoreload 0 # turn off autoreload
@@ -131,10 +133,6 @@ for donut_hole in donut_holes:
 # the holes are gone
 pa_df = pa_df.drop(donut_holes)
 
-
-
-
-
 #%%
 
 ################################################
@@ -213,6 +211,7 @@ for i,_ in pa_df.iterrows():
 #%%
 # get the neighbors in order, possibly with duplicates
 
+# May need to change to x,y ; x,y&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 def getEndpoints(line_string):
     return [Point(line_string.xy[0][0], line_string.xy[1][0]), Point(line_string.xy[0][1], line_string.xy[1][1])]
  #%%
@@ -221,17 +220,105 @@ for i,_ in pa_df.iterrows():
     if len(num_lines <= 1):
         print ('Shoulda been a donut')
         continue
-    
-    new_neighbors = []
-    new_lines = []
-    index = 0
-    
-    for j in range(num_lines):
-        new_neighbors.append(precincts['neighbors'][index])
-        new_lines.append(precincts['lines'][index])
-        endpoints = getEndpoints(precincts['lines'][index])
-        
 
+        
+# Connor+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+for i,_ in pa_df.iterrows():
+    num_lines = len(precints[i]['lines'])
+    # Check for donut
+    if len(num_lines <= 1):
+        print('Should have been identified as a donut')
+        continue
+
+    # Initialize list of neighbors and lines in clockwise order
+    # Let first neighbor/line be starting value
+    new_neighbors = [precints[i]['neighbors'][0]]
+    new_lines = [precincts[i]['lines'][0]]
+    index = 0
+
+    # Set first neighbor/line to true
+    precints[i]['used'][0] = True
+
+    # Set the current endpoint
+    curr_endpt = getEndpoints(precints[i]['lines'][0])[0]
+
+    # Find a (counter-)clockwise order for the neighbors of the precinct
+    # Loop until every neighbor has been used
+    while(all(precincts[i]['lines'])):
+
+        # Set minimum distance to -1 to initialize
+        min_dist = -1
+
+        # Find unused indexes for neighbors/lines
+        unused_ix = [i for i, x in enumerate(precints[i]['used']) if x==False]
+        # Iterate through unused neighbors/lines
+        for j in unused_ix:
+            # Obtain endpoints and distances for line we are checking
+            check_endpts = getEndpoints(precints[i]['lines'][j])
+            dist_endpt = [curr_endpt.distance(check_endpts[0]), 
+                            curr_endpt.distance(check_endpts[1])]
+
+            # If first line being checked or line has an endpoint closer to our
+            # current endpoint, update the minimum distance, set index 
+            # (neighbor) to this line, update proposed next endpoint to become 
+            # current endpoint
+            if(min(dist_endpt) < min_dist || min_dist == -1):
+                min_dist = min(dist_endpt)
+                index = j
+                # Endpoint furthest from the current endpoint
+                next_endpt = check_endpts[dist_endpt.index(max(dist_endpt))]
+
+        # Update the new list of lines and neighbors. Set used = True
+        new_neighbors.append(precincts[i]['neighbors'][index])
+        new_lines.append(precincts['lines'][index])
+        precints[i]['used'][index] = True
+
+        # Update the current endpoint to the far endpoint of the closest line
+        curr_endpt = next_endpt
+
+    # We now have the neighbors in either counterclockwise or clockwise
+    # Create a set of points to create a linear ring and form ccw
+    endpts_ring = []
+
+    # Inintialize first lines into the ring
+    endpts_ring.append(getEndpoints(new_lines[0])[0])
+    endpts_ring.append(getEndpoints(new_lines[0])[1])
+    curr_endpt_ring = endpts_ring[1]
+
+    for j in range(1, num_lines):
+        # Obtain next endpoints in order and calculate distance
+        next_endpts_ring = getEndpoints(new_lines[j])
+        dist_endpt_ring = [curr_endpt_ring.distance(next_endpts_ring[0]), 
+                        curr_endpt_ring.distance(next_endpts_ring[1])]
+        # Determine which point to append first
+        p1 = next_endpts_ring[dist_endpt_ring.index(min(dist_endpt_ring))]
+        p2 = next_endpts_ring[dist_endpt_ring.index(max(dist_endpt_ring))]
+
+        # Append min distance point first. max distance point becomes current
+        endpts_ring.append(p1)
+        endpts_ring.append(p2)
+        curr_endpt_ring = p2
+
+    # Create the linear rings in both direction
+    lin_ring = LinearRing(endpts_ring)
+    lring2 = LinearRing(list(reversed(endpts_ring)))
+
+    # Check Linear Ring Orientation
+    if lring1.is_ccw:
+        # since normal order is ccw, we must reverse orders
+        new_neighbors = list(reversed(new_neighbors))
+        new_lines = list(reversed(new_lines))
+    elif lring2.is_ccw:
+        # reverse order is ccw, so lists are fine as is
+    else:
+        print('ERROR: Did not obtain a correct order')
+        print(i)
+
+    # Set new neighbors and new lines
+    precincts[i]['neighbors'] = new_neighbors
+    precincts[i]['lines'] = new_lines
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
 #%%
 # drop full state bound
