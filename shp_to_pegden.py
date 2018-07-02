@@ -258,6 +258,9 @@ pa_df.to_pickle('./merge_contained.pkl')
 ###### PUT NEIGHBOR LISTS IN CLOCKWISE ORDER #################################
 ##############################################################################
 
+# Load df after merge_contained
+pa_df = pd.read_pickle('./merge_contained.pkl')
+
 # Set the state border precinct to just be its boundary
 pa_df.at['PA_bound', 'geometry'] = pa_df.at['PA_bound', 'geometry'].boundary
 
@@ -268,9 +271,6 @@ def getEndpoints(line_string):
     two points, which are the endpoints of the linestring'''
     return [Point(line_string.xy[0][0], line_string.xy[1][0]), 
                 Point(line_string.xy[0][-1], line_string.xy[1][-1])]
-
-# Load df after merge_contained
-pa_df = pd.read_pickle('./merge_contained.pkl')
 
 # Initialize precincts as a dictionary
 precincts = dict()
@@ -361,7 +361,6 @@ for i,_ in pa_df.iterrows():
                         precincts[i]['neighbors'].append(j)
                         precincts[i]['used'].append(False)
                         precincts[i]['shared_perims'].append(line.length)
-
 
 # Iterate over each precinct. i is the GEOID10 of each precinct. Update
 # neighbor lists such that they are in counterclockwise order
@@ -547,7 +546,7 @@ pa_df.to_pickle('./after_clockwise.pkl')
 
 #%%
 ##############################################################################
-###### PUT BOUNDARY LISTS IN COUNTER-CLOCKWISE ORDER #########################
+###### PUT BOUNDARY LISTS IN NEGATVIE COUNTER-CLOCKWISE ORDER ################
 ##############################################################################
 
 # Load df after sorting neighbors in clockwise order
