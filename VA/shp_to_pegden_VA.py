@@ -15,8 +15,8 @@ import pickle
 # !!!Add from shapelygeometry shg
 
 # Define paths
-pgp = 'G:/Team Drives/princeton_gerrymandering_project'
-pgp_va = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/2010 Census/Dataverse_with_geom.shp"
+pgp = 'G:/Team Drives/princeton_gerrymandering_project/'
+pgp_va = "mapping/VA/2010 Census/Dataverse_with_geom.shp"
 output_text_file = 'VA_Pegden_Input.txt'
 
 # %%
@@ -33,10 +33,15 @@ va_df = va_df.append({'GEOID10': 'VA_bound', 'geometry': VA_bound},
                      ignore_index=True)
 va_df = va_df.set_index('GEOID10')
 
+va_df['area'] = pd.Series(dtype=object)
+
+#%%
 # Calculate area for each precinct
 for i, _ in va_df.iterrows():
+    #print(i)
     poly = va_df.at[i, 'geometry']
-    va_df.set_value(i, 'area', poly.area)
+    va_df.at[i, 'area'] = va_df.at[i, 'geometry'].area
+    #va_df.set_value(i, 'area', poly.area)
  
 #############################################################################
 ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#########################
@@ -49,7 +54,7 @@ for i, _ in va_df.iterrows():
 # capture_cols = [i for i in va_df.columns if any([re.match(j, i) \
 #                                                  for j in capture_cols])]
 # =============================================================================
-
+#%%
 capture_cols = ['PRES_DVOTE', 'PRES_RVOTE', 'POPTOT_00']
 
 #  Create helper function to identify Multi-Polygons
@@ -570,57 +575,96 @@ for i, _ in va_df.iterrows():
 # state
 initial = i
 
-# Calculate the index for the VA_bound neighbor
-pa_ix = va_df.at[i, 'neighbors'].index('VA_bound')
+pr = initial
+first_pr = True
 
-# Calcualte precinct's degree for mod division
-nbs_len = len(va_df.at[i, 'neighbors'])
-
-# Replace with the correct negative value and decrement
-va_df.at[i, 'neighbors'][pa_ix] = counter
-counter -= 1
-
-# Set the last precinct to the initial precinct. Set the next precinct to be
-# the initial precinct's neighbor that is one neighbor counter-clockwise
-# of the initial precinct
-next_ix = (pa_ix - 1) % nbs_len
-pr = va_df.at[i, 'neighbors'][next_ix]
-last_pr = i
-
-# helper variable to prevent falling into infinite while loop
-total = 1
-
-# iterate through all of the boundary precincts until we loop around the 
-# entire state boundary
-while pr != initial:
-    
+# we need to initialize a value of last precinct for the initial comparison
+last_pr = 0
+while True:
+    total = 0
     # Get the degree of the new precinct for mod division
     nb_len = len(va_df.at[pr, 'neighbors'])
     
     # iterate through all of the neighbors. Find the neighbor that is
     # 'VA_bound' and its clockwise neighbor is the last precinct
     for j in range(nb_len):
-        # Get value for the current precinct and clockwise precinct in the loop
-        
-        # Get value of the boundary neighbor and the neighbor one clockwise
-        # of the boundary neighbor
-        
         # Get value of the neighbor precinct (bound) and the neighbor that
         # is one precinct clockwise of the neighbor of the neighbor precinct
         bound = va_df.at[pr,'neighbors'][j]
         cw_pr = va_df.at[pr,'neighbors'][(j + 1) % nb_len]
         
-        # Find the correct neighbor as explained above
-        if cw_pr == last_pr and bound == 'VA_bound':
+        # Find the correct neighbor as explained above or enter if it is the
+        # initial case when a last precinct does not exist
+        if (cw_pr == last_pr and bound == 'VA_bound') or \
+        (first_pr and bound == 'VA_bound'):
+            first_pr = False
+            
             # Set value of border and decrement counter
             va_df.at[pr, 'neighbors'][j] = counter
             counter -= 1
             
+            ####################
             # Update the precinct values. New precinct is the counter-clockwise
             # neighbor of the last precinct
             last_pr = pr
             pr = va_df.at[pr, 'neighbors'][(j - 1) % nb_len]
             
+            # This is the case when the counterclockwise nb (now pr) ends up 
+            # only touching the boundary on a point
+            nb_point_case = True
+            
+            # Loop until we find a precinct that meets the boundary in a line
+            while nb_point_case:
+                
+                # We will obtain shared perimeters to ensure that the boundary
+                # we are checking between last_pr and pr has the correct index
+                # due to precincts being able to be each others neighbors 
+                # multiple times
+                
+                # get the shared perimeter of precinct
+                pr_shared_perim = va_df.at[last_pr, 'shared_perims'][(j - 1)\
+                                          % nb_len]
+                
+                # Iterate through all of the indexes of pr neighbors looking
+                # for the last precinct
+                k_nb_len = len(va_df.at[pr, 'neighbors'])
+                for k in range(k_nb_len):
+                    
+                    # Check that neighbor is the last precinct and that the
+                    # shared perimeter is equal
+                    
+                    # Check if the current neighbor is the last precinct and
+                    # that the shared perimeter is equal
+                    if va_df.at[pr, 'neighbors'][k] == last_pr:
+                        nb_shared_perim = va_df.at[pr, 'shared_perims'][k]
+                        if abs(nb_shared_perim - pr_shared_perim) < 1e-8:
+                        
+                            # Check that the precinct that is one neighbor
+                            # counter-clockwise is the boundary. 
+                            if va_df.at[pr, 'neighbors'][(k - 1) % k_nb_len] \
+                            == 'VA_bound':
+                                nb_point_case = False
+                                
+                            # The counter-clockwise neighbor is not the
+                            # boundary, so we have the point case in which we
+                            # need to shift last_pr and pr by one precinct
+                            # counter-clockwise and check again until we no
+                            # longer have a boundary point case
+                            else:
+                                last_pr = pr
+                                pr = va_df.at[pr, 'neighbors'][(k - 1) % \
+                                             k_nb_len]
+                                
+                                # Exit while loop if we have went over every
+                                # boundary
+                                if pr == -1:
+                                    nb_point_case = False
+                                    
+                            # Leave the for loop that iterates with k
+                            break
+
+            
+            #########################
             # Break because we do not need to check the remaining neighbors
             break
         
@@ -629,6 +673,10 @@ while pr != initial:
     total += 1
     if total > 1000:
         print('STUCK')
+        break
+    
+    # Leave the entire loop once every boundary has been accounted for
+    if pr == -1:
         break
     
 # Remove the state boundary "precinct"
@@ -716,8 +764,9 @@ def convert_geoid(x):
         return str(seq_map[x])
 
 # Iterate through each row in the dataframe to write outpt
-for _, row in va_df.iterrows():
+for ix, row in va_df.iterrows():
  
+    print(ix)
     # Label precinct index (GEOID10)
     f.write(str(row['sequential']) + '\t')
     
