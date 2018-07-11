@@ -16,7 +16,7 @@ import pickle
 
 # Define paths
 pgp = 'G:/Team Drives/princeton_gerrymandering_project'
-pgp_va = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/2010 Census/Dataverse_with_geom.shp"
+pgp_va = "/mapping/VA/2010 Census/Dataverse_with_geom.shp"
 output_text_file = 'VA_Pegden_Input.txt'
 
 # %%
@@ -33,10 +33,15 @@ va_df = va_df.append({'GEOID10': 'VA_bound', 'geometry': VA_bound},
                      ignore_index=True)
 va_df = va_df.set_index('GEOID10')
 
+va_df['area'] = pd.Series(dtype=object)
+
+#%%
 # Calculate area for each precinct
 for i, _ in va_df.iterrows():
+    #print(i)
     poly = va_df.at[i, 'geometry']
-    va_df.set_value(i, 'area', poly.area)
+    va_df.at[i, 'area'] = va_df.at[i, 'geometry'].area
+    #va_df.set_value(i, 'area', poly.area)
  
 #############################################################################
 ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#########################
@@ -49,7 +54,7 @@ for i, _ in va_df.iterrows():
 # capture_cols = [i for i in va_df.columns if any([re.match(j, i) \
 #                                                  for j in capture_cols])]
 # =============================================================================
-
+#%%
 capture_cols = ['PRES_DVOTE', 'PRES_RVOTE', 'POPTOT_00']
 
 #  Create helper function to identify Multi-Polygons
