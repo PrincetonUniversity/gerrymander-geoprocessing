@@ -818,39 +818,25 @@ df.to_pickle('./' + state + '_after_CD_assign.pkl')
 ###############################################################################
 ###### Assign Census Blocks To Precincts and Get Population####################
 ###############################################################################
-count = 0
-import time
 
 # Load df after boundary counter-clockwise sort
 df = pd.read_pickle('./' + state + '_after_CD_assign.pkl')
 
 if census_pop:
     # read in census file
-    start = time.time()
     c_df = gpd.read_file(pgp + census_file)
-    print('Load time')
-    print(time.time() - start)
-    start = time.time()
     c_df.to_pickle('./' + state + '_load_census.pkl')
-    print('Pickle time')
-    
+
     # initialize population to zero
     df[pop_string] = 0
     
     start = time.time()
     # construct spatial tree for precincts
     pr_si = df.sindex
-    print('spatial index')
-    print(time.time() - start)
-    start = time.time()
+    
     # iterate through every census block, i is the GEOID10 of the precinct
     for i, _ in c_df.iterrows():
-        count += 1
-        
-        if count % 100 == 0:
-            print(time.time() - start)
-            print(count)
-            start = time.time()
+
         # let census_block equal the geometry of the censu_block. Note: later
         # census_block.bounds is the minimum bounding rectangle for the cb
         census_block = c_df.at[i, 'geometry']
