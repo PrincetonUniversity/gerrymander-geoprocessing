@@ -27,6 +27,10 @@ D_string = 'PRES_DVOTE'
 R_string = 'PRES_RVOTE'
 pop_string = 'POPTOT_00'
 
+# Add population from census
+census_pop = True
+census_file = 'mapping/VA/2010 Census/CensusBlocksPopTake2/tabblock2010_51_pophu.shp'
+c_pop_string = 'POP10'
 # Determine which columns to keep 
 # Could be adapted to keep more, but Pegden wiil run with D_string and R_string
 capture_cols = [D_string, R_string, pop_string]
@@ -89,6 +93,8 @@ state_to_FIPS = {
   "WY": "56"}
 
 FIPS = state_to_FIPS[state]
+
+
 # %%
 ##############################################################################
 ###### LOAD SHAPES ###########################################################
@@ -105,7 +111,11 @@ df = df.set_index('GEOID10')
 
 df['area'] = pd.Series(dtype=object)
 
+df.to_pickle('./' + state + '_load_shapes.pkl')
+
 #%%
+df = pd.read_pickle('./' + state + '_load_shapes.pkl')
+#
 # Calculate area for each precinct
 for i, _ in df.iterrows():
     #print(i)
@@ -133,6 +143,10 @@ temp_df = pd.DataFrame()
 for archipelago in archipelagos:
     # Get shape and area of current precinct
     precinct = df.at[archipelago, 'geometry']
+    
+    if archipelago == 'state_bound':
+        print('HERE!!')
+    
     area = df.at[archipelago, 'area']
     
     # count assists in "new" (split) precincts name creation
@@ -218,7 +232,7 @@ for i,_ in df.iterrows():
             del df.at[i, 'neighbors'][j]
 
 # Save df after removing point contiguity
-df.to_pickle('./' + state + '_point_nb_deletion')
+df.to_pickle('./' + state + '_point_nb_deletion.pkl')
 
 #%%
 ##############################################################################
@@ -226,7 +240,7 @@ df.to_pickle('./' + state + '_point_nb_deletion')
 ##############################################################################
 
 # Load df after removing point contiguity
-df = pd.read_pickle('./' + state + '_point_nb_deletion')
+df = pd.read_pickle('./' + state + '_point_nb_deletion.pkl')
 
 # Notes: If running in sections, Capture Columns are defined above. Also, we
 # are not adding the geometry when combining the precincts. We are just 
@@ -662,8 +676,7 @@ while True:
             # Set value of border and decrement counter
             df.at[pr, 'neighbors'][j] = counter
             counter -= 1
-            
-            ####################
+
             # Update the precinct values. New precinct is the counter-clockwise
             # neighbor of the last precinct
             last_pr = pr
@@ -673,17 +686,20 @@ while True:
             # only touching the boundary on a point
             nb_point_case = True
             
-            # Loop until we find a precinct that meets the boundary in a line
+            # Define which edge touches the border. Even at a point to deal
+            # with queen contiguity on border
+            touches_border = j
+            
+            # Loop until we find a precinct that meets the boundary in a line            
             while nb_point_case:
-                
                 # We will obtain shared perimeters to ensure that the boundary
                 # we are checking between last_pr and pr has the correct index
                 # due to precincts being able to be each others neighbors 
                 # multiple times
                 
                 # get the shared perimeter of precinct
-                pr_shared_perim = df.at[last_pr, 'shared_perims'][(j - 1)\
-                                          % nb_len]
+                pr_shared_perim = df.at[last_pr, 'shared_perims'][\
+                                       (touches_border - 1) % nb_len]
                 
                 # Iterate through all of the indexes of pr neighbors looking
                 # for the last precinct
@@ -698,7 +714,10 @@ while True:
                     if df.at[pr, 'neighbors'][k] == last_pr:
                         nb_shared_perim = df.at[pr, 'shared_perims'][k]
                         if abs(nb_shared_perim - pr_shared_perim) < 1e-8:
-                        
+                            # Reset index that touches edge in case this
+                            # is not a state_bound
+                            touches_border = k
+                            
                             # Check that the precinct that is one neighbor
                             # counter-clockwise is the boundary. 
                             if df.at[pr, 'neighbors'][(k - 1) % k_nb_len] \
@@ -722,9 +741,6 @@ while True:
                                     
                             # Leave the for loop that iterates with k
                             break
-
-            
-            #########################
             # Break because we do not need to check the remaining neighbors
             break
         
@@ -739,9 +755,12 @@ while True:
     if pr == -1:
         break
     
+    # Print
+    if pr == '51685002_1':
+        break
 # Remove the state boundary "precinct"
 df = df.drop('state_bound')
-            
+
 # Save df after boundary counter-clockwise sort
 df.to_pickle('./' + state + '_after_boundary.pkl')
 #%%
@@ -792,6 +811,76 @@ for i, _ in df.iterrows():
     # Assign the district to the precinct
     df.at[i, 'CD'] = str(CD)
 
+# Save df after boundary counter-clockwise sort
+df.to_pickle('./' + state + '_after_CD_assign.pkl')
+
+#%%
+###############################################################################
+###### Assign Census Blocks To Precincts and Get Population####################
+###############################################################################
+count = 0
+import time
+
+# Load df after boundary counter-clockwise sort
+df = pd.read_pickle('./' + state + '_after_CD_assign.pkl')
+
+if census_pop:
+    # read in census file
+    start = time.time()
+    c_df = gpd.read_file(pgp + census_file)
+    print('Load time')
+    print(time.time() - start)
+    start = time.time()
+    c_df.to_pickle('./' + state + '_load_census.pkl')
+    print('Pickle time')
+    
+    # initialize population to zero
+    df[pop_string] = 0
+    
+    start = time.time()
+    # construct spatial tree for precincts
+    pr_si = df.sindex
+    print('spatial index')
+    print(time.time() - start)
+    start = time.time()
+    # iterate through every census block, i is the GEOID10 of the precinct
+    for i, _ in c_df.iterrows():
+        count += 1
+        
+        if count % 100 == 0:
+            print(time.time() - start)
+            print(count)
+            start = time.time()
+        # let census_block equal the geometry of the censu_block. Note: later
+        # census_block.bounds is the minimum bounding rectangle for the cb
+        census_block = c_df.at[i, 'geometry']
+        
+        # Find which MBRs for districts intersect with our cb MBR
+        # MBR: Minimum Bounding Rectangle
+        poss_pr = [df.index[i] for i in list(pr_si.intersection(census_block.bounds))]
+        
+        # If precinct's MBR only intersects one district's MBR, set the district
+        if len(poss_pr) == 1:
+            PR = poss_pr[0]
+        else:
+            # for cases with multiple matches, compare fractional area
+            frac_area = {}
+            found_majority = False
+            for j in poss_pr:
+                if not found_majority:
+                    area = df.at[j, 'geometry'].intersection(census_block).area / \
+                            census_block.area
+                    # Majority area means, we can assign district
+                    if area > .5:
+                        found_majority = True
+                    frac_area[j] = area
+            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
+    
+        # Add population to precinct
+        df.at[PR, pop_string] += c_df.at[i, c_pop_string]
+
+
+
 ############################################
 ###### TOUCH-UPS ###########################
 ############################################
@@ -826,7 +915,6 @@ def convert_geoid(x):
 # Iterate through each row in the dataframe to write outpt
 for ix, row in df.iterrows():
  
-    print(ix)
     # Label precinct index (GEOID10)
     f.write(str(row['sequential']) + '\t')
     
