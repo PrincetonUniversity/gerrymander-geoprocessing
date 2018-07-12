@@ -14,39 +14,108 @@ import pickle
 
 # !!!Add from shapelygeometry shg
 
+# Select state
+state = 'VA'
+
 # Define paths
 pgp = 'G:/Team Drives/princeton_gerrymandering_project/'
-pgp_pa = 'mapping/PA/dataverse/pa_final.shp'
-output_text_file = 'PA_Pegden_Input.txt'
+pgp_state = "mapping/VA/2010 Census/Dataverse_with_geom.shp"
+output_text_file = state + '_Pegden_Input.txt'
 
+# Which fields from the shapefile do we need?
+D_string = 'PRES_DVOTE'
+R_string = 'PRES_RVOTE'
+pop_string = 'POPTOT_00'
+
+# Determine which columns to keep 
+# Could be adapted to keep more, but Pegden wiil run with D_string and R_string
+capture_cols = [D_string, R_string, pop_string]
+
+state_to_FIPS = {
+  "AK": "02",
+  "AL": "01",
+  "AR": "05",
+  "AS": "60",
+  "AZ": "04",
+  "CA": "06",
+  "CO": "08",
+  "CT": "09",
+  "DC": "11",
+  "DE": "10",
+  "FL": "12",
+  "GA": "13",
+  "GU": "66",
+  "HI": "15",
+  "IA": "19",
+  "ID": "16",
+  "IL": "17",
+  "IN": "18",
+  "KS": "20",
+  "KY": "21",
+  "LA": "22",
+  "MA": "25",
+  "MD": "24",
+  "ME": "23",
+  "MI": "26",
+  "MN": "27",
+  "MO": "29",
+  "MS": "28",
+  "MT": "30",
+  "NC": "37",
+  "ND": "38",
+  "NE": "31",
+  "NH": "33",
+  "NJ": "34",
+  "NM": "35",
+  "NV": "32",
+  "NY": "36",
+  "OH": "39",
+  "OK": "40",
+  "OR": "41",
+  "PA": "42",
+  "PR": "72",
+  "RI": "44",
+  "SC": "45",
+  "SD": "46",
+  "TN": "47",
+  "TX": "48",
+  "UT": "49",
+  "VA": "51",
+  "VI": "78",
+  "VT": "50",
+  "WA": "53",
+  "WI": "55",
+  "WV": "54",
+  "WY": "56"}
+
+FIPS = state_to_FIPS[state]
 # %%
 ##############################################################################
 ###### LOAD SHAPES ###########################################################
 ##############################################################################
 
 # load PA district shapes, append PA whole state, set GEOID10 as index
-pa_df = gpd.read_file(pgp + pgp_pa)
+df = gpd.read_file(pgp + pgp_state)
 
-pa_bound = shp.ops.cascaded_union(pa_df['geometry'])
+state_bound = shp.ops.cascaded_union(df['geometry'])
 
-pa_df = pa_df.append({'GEOID10': 'PA_bound', 'geometry': pa_bound}, 
+df = df.append({'GEOID10': 'state_bound', 'geometry': state_bound}, 
                      ignore_index=True)
-pa_df = pa_df.set_index('GEOID10')
+df = df.set_index('GEOID10')
 
+df['area'] = pd.Series(dtype=object)
+
+#%%
 # Calculate area for each precinct
-for i, _ in pa_df.iterrows():
-    poly = pa_df.at[i, 'geometry']
-    pa_df.set_value(i, 'area', poly.area)
+for i, _ in df.iterrows():
+    #print(i)
+    poly = df.at[i, 'geometry']
+    df.at[i, 'area'] = df.at[i, 'geometry'].area
+    #df.set_value(i, 'area', poly.area)
  
 #############################################################################
 ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#########################
 #############################################################################
-
-# Create regular expression to determine which columns to keep
-capture_cols = ['area', 'VAP', 'POP100',
-                '(?:USP|USS|USC|GOV|STS|STH)[DR]V[0-9]{4}']
-capture_cols = [i for i in pa_df.columns if any([re.match(j, i) \
-                                                 for j in capture_cols])]
 
 #  Create helper function to identify Multi-Polygons
 def non_contiguous(geom):
@@ -55,16 +124,16 @@ def non_contiguous(geom):
     return geom.type == 'MultiPolygon'
 
 # Find indexes of non-contiguous precincts
-archipelagos = pa_df[pa_df['geometry'].apply(non_contiguous)==True].index
+archipelagos = df[df['geometry'].apply(non_contiguous)==True].index
 
 # Create a temporary data frame for the redefined split up precincts
-temp_pa_df = pd.DataFrame()
+temp_df = pd.DataFrame()
 
 # Iterate through each of the non-contiguous precincts
 for archipelago in archipelagos:
     # Get shape and area of current precinct
-    precinct = pa_df.at[archipelago, 'geometry']
-    area = pa_df.at[archipelago, 'area']
+    precinct = df.at[archipelago, 'geometry']
+    area = df.at[archipelago, 'area']
     
     # count assists in "new" (split) precincts name creation
     count = 0
@@ -84,20 +153,20 @@ for archipelago in archipelagos:
         
         # Set column values proportional to the regions area
         for col in capture_cols:
-            d[col] = proportion * pa_df.at[archipelago, col]
+            d[col] = proportion * df.at[archipelago, col]
 
         # Append split precinct from to temporary dataframe
-        temp_pa_df = temp_pa_df.append(d, ignore_index = True)
+        temp_df = temp_df.append(d, ignore_index = True)
         count += 1
 
 # set index of temp dataframe to match original
-temp_pa_df = temp_pa_df.set_index('GEOID10')
+temp_df = temp_df.set_index('GEOID10')
 
 # merge datatframes
-pa_df = pa_df.append(temp_pa_df)
+df = df.append(temp_df)
 
 # delete original precinct rows
-pa_df = pa_df.drop(archipelagos)
+df = df.drop(archipelagos)
 
 ##############################################################################
 ###### QUEEN CONTIGUITY#######################################################
@@ -106,50 +175,50 @@ pa_df = pa_df.drop(archipelagos)
 # Obtain queen continuity for each shape in the dataframe. We will remove all
 # point contiguity. Shapely rook contiguity sometimes assumes lines with small
 # lines are points
-w = ps.weights.Queen.from_dataframe(pa_df, geom_col='geometry')
+w = ps.weights.Queen.from_dataframe(df, geom_col='geometry')
 
 # Initialize neighbors and shared_perims columns
 new_cols = ['neighbors', 'shared_perims']
 for column in new_cols:
-    pa_df[column] = pd.Series(dtype=object)
+    df[column] = pd.Series(dtype=object)
 
 # Initialize neighbors for each precinct
-for i,_ in pa_df.iterrows():
-    pa_df.at[i, 'neighbors'] = w.neighbors[i]
+for i,_ in df.iterrows():
+    df.at[i, 'neighbors'] = w.neighbors[i]
 
 # Save df after contiguity
-pa_df.to_pickle('./after_queen.pkl')
+df.to_pickle('./' + state + '_after_queen.pkl')
 
 #%%
 # Load df after contiguity
-pa_df = pd.read_pickle('./after_queen.pkl')
+df = pd.read_pickle('./' + state + '_after_queen.pkl')
 
 # Iterate through every precinct to remove all neighbors that only share a 
 # single point. Rook contiguity would asssume some lines are points, so we
 # have to use queen and then remove points
-for i,_ in pa_df.iterrows():
+for i,_ in df.iterrows():
     
     # Obtain degree (# neighbors) of precinct
-    nb_len = len(pa_df.at[i, 'neighbors'])
+    nb_len = len(df.at[i, 'neighbors'])
     
     # Iterate through neighbor indexes in reverse order to prevent errors due
     # to the deletion of elements
     for j in range(nb_len - 1, -1, -1):
         # get the jth neighbor
-        j_nb = pa_df.at[i, 'neighbors'][j]
+        j_nb = df.at[i, 'neighbors'][j]
         
         # get the geometry for both precincts
-        i_geom = pa_df.at[i, 'geometry']
-        j_nb_geom = pa_df.at[j_nb, 'geometry']
+        i_geom = df.at[i, 'geometry']
+        j_nb_geom = df.at[j_nb, 'geometry']
         
         # If their intersection is a point, delete j_nb from i's neighbor list
         # do not delete in both directions. That will be taken care of
         # eventually when i = j_nb later in the loop or before this occurs
         if i_geom.intersection(j_nb_geom).type == 'Point':
-            del pa_df.at[i, 'neighbors'][j]
+            del df.at[i, 'neighbors'][j]
 
 # Save df after removing point contiguity
-pa_df.to_pickle('./point_nb_deletion')
+df.to_pickle('./' + state + '_point_nb_deletion')
 
 #%%
 ##############################################################################
@@ -157,7 +226,7 @@ pa_df.to_pickle('./point_nb_deletion')
 ##############################################################################
 
 # Load df after removing point contiguity
-pa_df = pd.read_pickle('./point_nb_deletion')
+df = pd.read_pickle('./' + state + '_point_nb_deletion')
 
 # Notes: If running in sections, Capture Columns are defined above. Also, we
 # are not adding the geometry when combining the precincts. We are just 
@@ -166,44 +235,44 @@ pa_df = pd.read_pickle('./point_nb_deletion')
 
 # Donut Hole Precinct Check
 # Get IDs of donut holes with only one neighbor
-donut_holes = pa_df[pa_df['neighbors'].apply(len)==1].index
+donut_holes = df[df['neighbors'].apply(len)==1].index
     
 # Loop until no more donuts exist. Must loop due to concentric precincts
 while len(donut_holes) != 0:
     # Iterate over each donut hole precinct
     for donut_hole in donut_holes:
         # find each donut's surrounding precinct
-        donut = pa_df.at[donut_hole, 'neighbors'][0]
+        donut = df.at[donut_hole, 'neighbors'][0]
     
         # Combine donut hole precinct and surrounding precinct capture columns
         for col in capture_cols:
-            pa_df.at[donut, col] = pa_df.at[donut, col] + \
-                                        pa_df.at[donut_hole, col]
+            df.at[donut, col] = df.at[donut, col] + \
+                                        df.at[donut_hole, col]
     
         # remove neighbor reference to donut hole precinct and delete
-        donut_hole_index = pa_df.at[donut, 'neighbors'].index(donut_hole)
-        del(pa_df.at[donut, 'neighbors'][donut_hole_index])
+        donut_hole_index = df.at[donut, 'neighbors'].index(donut_hole)
+        del(df.at[donut, 'neighbors'][donut_hole_index])
     
     # Drop the rows in the dataframe for the donut holes that existed
-    pa_df = pa_df.drop(donut_holes)
+    df = df.drop(donut_holes)
     
     # get IDs of new donut holes created
-    donut_holes = pa_df[pa_df['neighbors'].apply(len)==1].index
+    donut_holes = df[df['neighbors'].apply(len)==1].index
 
 # Multiple Contained Precincts Check
 # Create list of rows to drop at the end of the multiple contained check
 ids_to_drop = []
 
 # Iterate over all precincts except the state boundary precinct
-for i,_ in pa_df.iterrows():
-    if i == 'PA_bound':
+for i,_ in df.iterrows():
+    if i == 'state_bound':
         continue
     
     # Create polygon Poly for this precinct from its exterior coordinates. This
     # polygon will be filled without an interior. The purpose of filling
     # the interior is to allow for an intersection to see if a neighbor is
     # fully contained
-    poly_coords = list(pa_df.at[i, 'geometry'].exterior.coords)
+    poly_coords = list(df.at[i, 'geometry'].exterior.coords)
     poly = Polygon(poly_coords)
     
     # Create list of contained neighbor id's to delete
@@ -212,29 +281,29 @@ for i,_ in pa_df.iterrows():
     # Define a list that contains possibly contained precincts. If a precint
     # is nested witin other contained precincts, we will need to add it to
     # this list
-    possibly_contained = pa_df.at[i, 'neighbors']
+    possibly_contained = df.at[i, 'neighbors']
     for j in possibly_contained:        
         
         # Check if the intersection of Poly (precint i's full polygon) and the
         # current neighbor is equal to the current neighbor. This demonstrates
         # that the current neighbor is fully contained within precinct i
-        j_geom = pa_df.at[j, 'geometry']
+        j_geom = df.at[j, 'geometry']
         
         if j_geom == j_geom.intersection(poly):
             # j is fully contained within i. To account for nested precincts
             # we append any neighbor of j that is not already in possibly_
             # contained not including i
-            for j_nb in pa_df.at[j, 'neighbors']:
+            for j_nb in df.at[j, 'neighbors']:
                 if j_nb not in possibly_contained and j_nb != i:
                     possibly_contained.append(j_nb)
 
             # Add capture columns from neighbor to precinct i
             for col in capture_cols:
-                pa_df.at[i, col] = pa_df.at[i, col] + pa_df.at[j, col]
+                df.at[i, col] = df.at[i, col] + df.at[j, col]
                         
             # add neighbor reference from precinct i to delete if a neighbor
-            if j in pa_df.at[i, 'neighbors']:
-                nb_ix = pa_df.at[i, 'neighbors'].index(j)
+            if j in df.at[i, 'neighbors']:
+                nb_ix = df.at[i, 'neighbors'].index(j)
                 nb_ix_del.append(nb_ix)
             
             # add neighbor precinct to the ID's to be dropped
@@ -244,13 +313,13 @@ for i,_ in pa_df.iterrows():
     if len(nb_ix_del) > 0:
         # iterate through indexes in reverse to prevent errors through deletion
         for nb_ix in reversed(nb_ix_del):
-            del(pa_df.at[i, 'neighbors'][nb_ix])
+            del(df.at[i, 'neighbors'][nb_ix])
 
 # Drop contained precincts from the dataframe
-pa_df = pa_df.drop(ids_to_drop)
+df = df.drop(ids_to_drop)
 
 # Save df after merge_contained
-pa_df.to_pickle('./merge_contained.pkl')
+df.to_pickle('./' + state + '_merge_contained.pkl')
 
 
 #%%
@@ -259,10 +328,10 @@ pa_df.to_pickle('./merge_contained.pkl')
 ##############################################################################
 
 # Load df after merge_contained
-pa_df = pd.read_pickle('./merge_contained.pkl')
+df = pd.read_pickle('./' + state + '_merge_contained.pkl')
 
 # Set the state border precinct to just be its boundary
-pa_df.at['PA_bound', 'geometry'] = pa_df.at['PA_bound', 'geometry'].boundary
+df.at['state_bound', 'geometry'] = df.at['state_bound', 'geometry'].boundary
 
 
 # Define helper function to get endpoints of strings
@@ -276,7 +345,7 @@ def getEndpoints(line_string):
 precincts = dict()
 
 # iterate over each precinct
-for i,_ in pa_df.iterrows():
+for i,_ in df.iterrows():
     
     # Initialize each precinct's geoID to be a key in the precincts dictionary
     precincts[i] = dict() # lines, neighbors, used indexed the same
@@ -292,10 +361,10 @@ for i,_ in pa_df.iterrows():
     precincts[i]['shared_perims'] = []
     
     # Iterate over the neighbors of precinct i
-    for j in pa_df.at[i, 'neighbors']:
+    for j in df.at[i, 'neighbors']:
         
         # Obtain the boundary between the current precinct and its j neighbor
-        shape = pa_df.at[i, 'geometry'].intersection(pa_df.at[j, 'geometry'])
+        shape = df.at[i, 'geometry'].intersection(df.at[j, 'geometry'])
         
         # Account for all the different possible types shape could have. In
         # each case append the geometry to lines, neighbor index to neighbors,
@@ -364,7 +433,7 @@ for i,_ in pa_df.iterrows():
 
 # Iterate over each precinct. i is the GEOID10 of each precinct. Update
 # neighbor lists such that they are in counterclockwise order
-for i,_ in pa_df.iterrows():
+for i,_ in df.iterrows():
 
     # Initialize lists that will sort the neighbors, lines, and perimeters
     # in clockwise order by appending the first element to the list
@@ -538,11 +607,11 @@ for i,_ in pa_df.iterrows():
             loop_ix +=1
     
     # Set new_neighbors array into the dataframe
-    pa_df.at[i, 'neighbors'] = new_neighbors
-    pa_df.at[i, 'shared_perims'] = new_shared_perims
+    df.at[i, 'neighbors'] = new_neighbors
+    df.at[i, 'shared_perims'] = new_shared_perims
 
 # Save df after sorting neighbors in clockwise order
-pa_df.to_pickle('./after_clockwise.pkl')
+df.to_pickle('./' + state + '_after_clockwise.pkl')
 
 #%%
 ##############################################################################
@@ -550,73 +619,112 @@ pa_df.to_pickle('./after_clockwise.pkl')
 ##############################################################################
 
 # Load df after sorting neighbors in clockwise order
-pa_df = pd.read_pickle('./after_clockwise.pkl')
+df = pd.read_pickle('./' + state + '_after_clockwise.pkl')
 
 # Initialzie negative counter. This will be the value assigned to state
 # boundaries
 counter = -1
 
 # Find an initial precinct on the state boundary
-for i, _ in pa_df.iterrows():
+for i, _ in df.iterrows():
     # find a starting border that only touches the border once
-    if pa_df.at[i, 'neighbors'].count('PA_bound') == 1:
+    if df.at[i, 'neighbors'].count('state_bound') == 1:
         break
 
 # set the initial GEOID10 so we know once we have looped around the entire 
 # state
 initial = i
 
-# Calculate the index for the pa_bound neighbor
-pa_ix = pa_df.at[i, 'neighbors'].index('PA_bound')
+pr = initial
+first_pr = True
 
-# Calcualte precinct's degree for mod division
-nbs_len = len(pa_df.at[i, 'neighbors'])
-
-# Replace with the correct negative value and decrement
-pa_df.at[i, 'neighbors'][pa_ix] = counter
-counter -= 1
-
-# Set the last precinct to the initial precinct. Set the next precinct to be
-# the initial precinct's neighbor that is one neighbor counter-clockwise
-# of the initial precinct
-next_ix = (pa_ix - 1) % nbs_len
-pr = pa_df.at[i, 'neighbors'][next_ix]
-last_pr = i
-
-# helper variable to prevent falling into infinite while loop
-total = 1
-
-# iterate through all of the boundary precincts until we loop around the 
-# entire state boundary
-while pr != initial:
-    
+# we need to initialize a value of last precinct for the initial comparison
+last_pr = 0
+while True:
+    total = 0
     # Get the degree of the new precinct for mod division
-    nb_len = len(pa_df.at[pr, 'neighbors'])
+    nb_len = len(df.at[pr, 'neighbors'])
     
     # iterate through all of the neighbors. Find the neighbor that is
-    # 'PA_bound' and its clockwise neighbor is the last precinct
+    # 'state_bound' and its clockwise neighbor is the last precinct
     for j in range(nb_len):
-        # Get value for the current precinct and clockwise precinct in the loop
-        
-        # Get value of the boundary neighbor and the neighbor one clockwise
-        # of the boundary neighbor
-        
         # Get value of the neighbor precinct (bound) and the neighbor that
         # is one precinct clockwise of the neighbor of the neighbor precinct
-        bound = pa_df.at[pr,'neighbors'][j]
-        cw_pr = pa_df.at[pr,'neighbors'][(j + 1) % nb_len]
+        bound = df.at[pr,'neighbors'][j]
+        cw_pr = df.at[pr,'neighbors'][(j + 1) % nb_len]
         
-        # Find the correct neighbor as explained above
-        if cw_pr == last_pr and bound == 'PA_bound':
+        # Find the correct neighbor as explained above or enter if it is the
+        # initial case when a last precinct does not exist
+        if (cw_pr == last_pr and bound == 'state_bound') or \
+        (first_pr and bound == 'state_bound'):
+            first_pr = False
+            
             # Set value of border and decrement counter
-            pa_df.at[pr, 'neighbors'][j] = counter
+            df.at[pr, 'neighbors'][j] = counter
             counter -= 1
             
+            ####################
             # Update the precinct values. New precinct is the counter-clockwise
             # neighbor of the last precinct
             last_pr = pr
-            pr = pa_df.at[pr, 'neighbors'][(j - 1) % nb_len]
+            pr = df.at[pr, 'neighbors'][(j - 1) % nb_len]
             
+            # This is the case when the counterclockwise nb (now pr) ends up 
+            # only touching the boundary on a point
+            nb_point_case = True
+            
+            # Loop until we find a precinct that meets the boundary in a line
+            while nb_point_case:
+                
+                # We will obtain shared perimeters to ensure that the boundary
+                # we are checking between last_pr and pr has the correct index
+                # due to precincts being able to be each others neighbors 
+                # multiple times
+                
+                # get the shared perimeter of precinct
+                pr_shared_perim = df.at[last_pr, 'shared_perims'][(j - 1)\
+                                          % nb_len]
+                
+                # Iterate through all of the indexes of pr neighbors looking
+                # for the last precinct
+                k_nb_len = len(df.at[pr, 'neighbors'])
+                for k in range(k_nb_len):
+                    
+                    # Check that neighbor is the last precinct and that the
+                    # shared perimeter is equal
+                    
+                    # Check if the current neighbor is the last precinct and
+                    # that the shared perimeter is equal
+                    if df.at[pr, 'neighbors'][k] == last_pr:
+                        nb_shared_perim = df.at[pr, 'shared_perims'][k]
+                        if abs(nb_shared_perim - pr_shared_perim) < 1e-8:
+                        
+                            # Check that the precinct that is one neighbor
+                            # counter-clockwise is the boundary. 
+                            if df.at[pr, 'neighbors'][(k - 1) % k_nb_len] \
+                            == 'state_bound':
+                                nb_point_case = False
+                                
+                            # The counter-clockwise neighbor is not the
+                            # boundary, so we have the point case in which we
+                            # need to shift last_pr and pr by one precinct
+                            # counter-clockwise and check again until we no
+                            # longer have a boundary point case
+                            else:
+                                last_pr = pr
+                                pr = df.at[pr, 'neighbors'][(k - 1) % \
+                                             k_nb_len]
+                                
+                                # Exit while loop if we have went over every
+                                # boundary
+                                if pr == -1:
+                                    nb_point_case = False
+                                    
+                            # Leave the for loop that iterates with k
+                            break
+
+            
+            #########################
             # Break because we do not need to check the remaining neighbors
             break
         
@@ -627,23 +735,27 @@ while pr != initial:
         print('STUCK')
         break
     
+    # Leave the entire loop once every boundary has been accounted for
+    if pr == -1:
+        break
+    
 # Remove the state boundary "precinct"
-pa_df = pa_df.drop('PA_bound')
+df = df.drop('state_bound')
             
 # Save df after boundary counter-clockwise sort
-pa_df.to_pickle('./after_boundary.pkl')
+df.to_pickle('./' + state + '_after_boundary.pkl')
 #%%
 ############################################
 ###### ASSIGN CONG. DISTRICTS TO PRECINCTS #
 ############################################
 
 # Load df after boundary counter-clockwise sort
-pa_df = pd.read_pickle('./after_boundary.pkl')
+df = pd.read_pickle('./' + state + '_after_boundary.pkl')
 
 # Assign congressional districts
 CDs = gpd.read_file(pgp + \
  'mapping/115th congress shapefiles/tl_2016_us_cd115.shp').set_index('CD115FP')
-CDs = CDs.loc[CDs['STATEFP']=='42']
+CDs = CDs.loc[CDs['STATEFP'] == FIPS]
 CDs.index = CDs.index.astype(int)
 
 # construct r-tree spatial index. Creates minimum bounding rectangle about
@@ -651,10 +763,10 @@ CDs.index = CDs.index.astype(int)
 si = CDs.sindex
 
 # iterate through every precinct, i is the GEOID10 of the precinct
-for i, _ in pa_df.iterrows():
+for i, _ in df.iterrows():
     # let precinct equal the geometry of the precinct. Note: later
     # precinct.bounds is the minimum bounding rectangle for the precinct
-    precinct = pa_df.at[i, 'geometry']
+    precinct = df.at[i, 'geometry']
     
     # Find which MBRs for districts intersect with our precincts MBR
     # MBR: Minimum Bounding Rectangle
@@ -678,29 +790,29 @@ for i, _ in pa_df.iterrows():
         CD = max(frac_area.items(), key=operator.itemgetter(1))[0]
 
     # Assign the district to the precinct
-    pa_df.at[i, 'CD'] = str(CD)
+    df.at[i, 'CD'] = str(CD)
 
 ############################################
 ###### TOUCH-UPS ###########################
 ############################################
 
-pa_df['sequential'] = range(len(pa_df))
-seq_map = pa_df['sequential'].to_dict()
+df['sequential'] = range(len(df))
+seq_map = df['sequential'].to_dict()
 
 # Save df after assigning districts
-pa_df.to_pickle('./df_final.pkl')
+df.to_pickle('./' + state + '_df_final.pkl')
 #%%
 ############################################
 ###### EXPORT ##############################
 ############################################
 
 # Load df after assigning districts
-pa_df = pd.read_pickle('./df_final.pkl')
+df = pd.read_pickle('./' + state + '_df_final.pkl')
 
 # Name output text file and write headers. output_text_file is located at the
 # top of the code
 f = open(output_text_file, 'w')
-f.write('precinctlistv01\n' + str(len(pa_df)) + '\n' + \
+f.write('precinctlistv01\n' + str(len(df)) + '\n' + \
         '\tnb\tsp\tunshared\tarea\tpop\tvoteA\tvoteB\tcongD\n')
 
 # Helper function to convert geoID values into precinct index values
@@ -712,8 +824,9 @@ def convert_geoid(x):
         return str(seq_map[x])
 
 # Iterate through each row in the dataframe to write outpt
-for _, row in pa_df.iterrows():
+for ix, row in df.iterrows():
  
+    print(ix)
     # Label precinct index (GEOID10)
     f.write(str(row['sequential']) + '\t')
     
@@ -730,11 +843,11 @@ for _, row in pa_df.iterrows():
     if len(row['shared_perims']) > 1:
         for i in row['shared_perims'][1:]:
             f.write(',' + i)
-
+    
     # Write remaining input
-    f.write('\t0\t' + str(row['area']) + '\t' + str(round(row['POP100'])) + \
-            '\t' + str(round(row['USSDV2010'])) + '\t' + \
-            str(round(row['USSRV2010'])) + '\t' + row['CD'])
+    f.write('\t0\t' + str(row['area']) + '\t' + str(round(row[pop_string])) + \
+            '\t' + str(round(row[D_string])) + '\t' + \
+            str(round(row[R_string])) + '\t' + row['CD'])
     f.write('\n')
 
 f.close()
