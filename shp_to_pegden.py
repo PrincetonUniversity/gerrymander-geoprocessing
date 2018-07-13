@@ -17,6 +17,9 @@ import pickle
 # Select state
 state = 'VA'
 
+# Info is text before state for filenames
+info = ''
+
 # Define paths
 pgp = 'G:/Team Drives/princeton_gerrymandering_project/'
 pgp_state = "mapping/VA/2010 Census/Dataverse_with_geom.shp"
@@ -29,7 +32,8 @@ pop_string = 'POPTOT_00'
 
 # Add population from census
 census_pop = True
-census_file = 'mapping/VA/2010 Census/CensusBlocksPopTake2/tabblock2010_51_pophu.shp'
+census_file = 'mapping/VA/2010 Census/CensusBlocksPopTake2/tabblock2010_51'\
+                '_pophu.shp'
 c_pop_string = 'POP10'
 # Determine which columns to keep 
 # Could be adapted to keep more, but Pegden wiil run with D_string and R_string
@@ -111,10 +115,10 @@ df = df.set_index('GEOID10')
 
 df['area'] = pd.Series(dtype=object)
 
-df.to_pickle('./' + state + '_load_shapes.pkl')
+df.to_pickle('./' + info + state + '_load_shapes.pkl')
 
 #%%
-df = pd.read_pickle('./' + state + '_load_shapes.pkl')
+df = pd.read_pickle('./' + info + state + '_load_shapes.pkl')
 #
 # Calculate area for each precinct
 for i, _ in df.iterrows():
@@ -123,9 +127,9 @@ for i, _ in df.iterrows():
     df.at[i, 'area'] = df.at[i, 'geometry'].area
     #df.set_value(i, 'area', poly.area)
  
-#############################################################################
-###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#########################
-#############################################################################
+###############################################################################
+###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)###########################
+###############################################################################
 
 #  Create helper function to identify Multi-Polygons
 def non_contiguous(geom):
@@ -182,9 +186,9 @@ df = df.append(temp_df)
 # delete original precinct rows
 df = df.drop(archipelagos)
 
-##############################################################################
-###### QUEEN CONTIGUITY#######################################################
-##############################################################################
+###############################################################################
+###### QUEEN CONTIGUITY########################################################
+###############################################################################
 
 # Obtain queen continuity for each shape in the dataframe. We will remove all
 # point contiguity. Shapely rook contiguity sometimes assumes lines with small
@@ -201,11 +205,11 @@ for i,_ in df.iterrows():
     df.at[i, 'neighbors'] = w.neighbors[i]
 
 # Save df after contiguity
-df.to_pickle('./' + state + '_after_queen.pkl')
+df.to_pickle('./' + info + state + '_after_queen.pkl')
 
 #%%
 # Load df after contiguity
-df = pd.read_pickle('./' + state + '_after_queen.pkl')
+df = pd.read_pickle('./' + info + state + '_after_queen.pkl')
 
 # Iterate through every precinct to remove all neighbors that only share a 
 # single point. Rook contiguity would asssume some lines are points, so we
@@ -232,15 +236,15 @@ for i,_ in df.iterrows():
             del df.at[i, 'neighbors'][j]
 
 # Save df after removing point contiguity
-df.to_pickle('./' + state + '_point_nb_deletion.pkl')
+df.to_pickle('./' + info + state + '_point_nb_deletion.pkl')
 
 #%%
-##############################################################################
-###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS ##################
-##############################################################################
+###############################################################################
+###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #####################
+###############################################################################
 
 # Load df after removing point contiguity
-df = pd.read_pickle('./' + state + '_point_nb_deletion.pkl')
+df = pd.read_pickle('./' + info + state + '_point_nb_deletion.pkl')
 
 # Notes: If running in sections, Capture Columns are defined above. Also, we
 # are not adding the geometry when combining the precincts. We are just 
@@ -333,16 +337,16 @@ for i,_ in df.iterrows():
 df = df.drop(ids_to_drop)
 
 # Save df after merge_contained
-df.to_pickle('./' + state + '_merge_contained.pkl')
+df.to_pickle('./' + info + state + '_merge_contained.pkl')
 
 
 #%%
-##############################################################################
-###### PUT NEIGHBOR LISTS IN CLOCKWISE ORDER #################################
-##############################################################################
+###############################################################################
+###### PUT NEIGHBOR LISTS IN CLOCKWISE ORDER ##################################
+###############################################################################
 
 # Load df after merge_contained
-df = pd.read_pickle('./' + state + '_merge_contained.pkl')
+df = pd.read_pickle('./' + info + state + '_merge_contained.pkl')
 
 # Set the state border precinct to just be its boundary
 df.at['state_bound', 'geometry'] = df.at['state_bound', 'geometry'].boundary
@@ -625,15 +629,15 @@ for i,_ in df.iterrows():
     df.at[i, 'shared_perims'] = new_shared_perims
 
 # Save df after sorting neighbors in clockwise order
-df.to_pickle('./' + state + '_after_clockwise.pkl')
+df.to_pickle('./' + info + state + '_after_clockwise.pkl')
 
 #%%
-##############################################################################
-###### PUT BOUNDARY LISTS IN NEGATVIE COUNTER-CLOCKWISE ORDER ################
-##############################################################################
+###############################################################################
+###### PUT BOUNDARY LISTS IN NEGATVIE COUNTER-CLOCKWISE ORDER #################
+###############################################################################
 
 # Load df after sorting neighbors in clockwise order
-df = pd.read_pickle('./' + state + '_after_clockwise.pkl')
+df = pd.read_pickle('./' + info + state + '_after_clockwise.pkl')
 
 # Initialzie negative counter. This will be the value assigned to state
 # boundaries
@@ -762,14 +766,14 @@ while True:
 df = df.drop('state_bound')
 
 # Save df after boundary counter-clockwise sort
-df.to_pickle('./' + state + '_after_boundary.pkl')
+df.to_pickle('./' + info + state + '_after_boundary.pkl')
 #%%
 ############################################
 ###### ASSIGN CONG. DISTRICTS TO PRECINCTS #
 ############################################
 
 # Load df after boundary counter-clockwise sort
-df = pd.read_pickle('./' + state + '_after_boundary.pkl')
+df = pd.read_pickle('./' + info + state + '_after_boundary.pkl')
 
 # Assign congressional districts
 CDs = gpd.read_file(pgp + \
@@ -812,7 +816,7 @@ for i, _ in df.iterrows():
     df.at[i, 'CD'] = str(CD)
 
 # Save df after boundary counter-clockwise sort
-df.to_pickle('./' + state + '_after_CD_assign.pkl')
+df.to_pickle('./' + info + state + '_after_CD_assign.pkl')
 
 #%%
 ###############################################################################
@@ -820,12 +824,12 @@ df.to_pickle('./' + state + '_after_CD_assign.pkl')
 ###############################################################################
 
 # Load df after boundary counter-clockwise sort
-df = pd.read_pickle('./' + state + '_after_CD_assign.pkl')
+df = pd.read_pickle('./' + info + state + '_after_CD_assign.pkl')
 
 if census_pop:
     # read in census file
     c_df = gpd.read_file(pgp + census_file)
-    c_df.to_pickle('./' + state + '_load_census.pkl')
+    c_df.to_pickle('./' + info + state + '_load_census.pkl')
 
     # initialize population to zero
     df[pop_string] = 0
@@ -843,9 +847,10 @@ if census_pop:
         
         # Find which MBRs for districts intersect with our cb MBR
         # MBR: Minimum Bounding Rectangle
-        poss_pr = [df.index[i] for i in list(pr_si.intersection(census_block.bounds))]
+        poss_pr = [df.index[i] for i in \
+                   list(pr_si.intersection(census_block.bounds))]
         
-        # If precinct's MBR only intersects one district's MBR, set the district
+        # If precinct MBR only intersects one district's MBR, set the district
         if len(poss_pr) == 1:
             PR = poss_pr[0]
         else:
@@ -875,14 +880,14 @@ df['sequential'] = range(len(df))
 seq_map = df['sequential'].to_dict()
 
 # Save df after assigning districts
-df.to_pickle('./' + state + '_df_final.pkl')
+df.to_pickle('./' + info + state + '_df_final.pkl')
 #%%
 ############################################
 ###### EXPORT ##############################
 ############################################
 
 # Load df after assigning districts
-df = pd.read_pickle('./' + state + '_df_final.pkl')
+df = pd.read_pickle('./' + info + state + '_df_final.pkl')
 
 # Name output text file and write headers. output_text_file is located at the
 # top of the code
