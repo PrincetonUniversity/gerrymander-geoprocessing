@@ -4,3 +4,4 @@
 .DS_Store
 __pycache__
 VA_load_census
+VA_load_shapes.pkl
