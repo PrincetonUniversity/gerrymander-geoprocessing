@@ -834,7 +834,6 @@ if census_pop:
     # initialize population to zero
     df[pop_string] = 0
     
-    start = time.time()
     # construct spatial tree for precincts
     pr_si = df.sindex
     

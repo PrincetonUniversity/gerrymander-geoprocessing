@@ -11,23 +11,34 @@ from shapely.geometry import Polygon
 import re
 import operator
 import pickle
-
+import os
+import shutil
 
 #%%
 
 ##############################################################################
 ###### PRELIMINARIES AND LOAD SHAPES #########################################
 ##############################################################################
-census_shape_path = 'G:/Team Drives/princeton_gerrymandering_project/mapping' \
-'/VA/Precinct Shapefile Collection/Virginia precincts/Bland County/Phase1/' \
-'tl_2010_51021_tabblock10 (1).shp'
+census_shape_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/XML/York Test County/York County_census_block.shp"
 
-out_folder = 'G:/Team Drives/princeton_gerrymandering_project/mapping/VA/' \
-'Virginia_Digitizing/Testing/Bland Test/'
+out_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/XML/York Test County"
 
-out_name = 'bland_phase1_noncontig_merge_test'
+out_name = 'York Without Projection precinct'
+
+# Delete CPG file
+cpg_path = ''.join(census_shape_path.split('.')[:-1]) + '.cpg'
+if os.path.exists(cpg_path):
+    os.remove(cpg_path)
+
+# Define projection path and check if it exists
+prj_exists = False
+prj_path = ''.join(census_shape_path.split('.')[:-1]) + '.prj'
+if os.path.exists(prj_path):
+    prj_exists = True
+
 df = gpd.read_file(census_shape_path)
 
+#%%
 ##############################################################################
 ###### QUEEN CONTIGUITY FOR CENSUS ###########################################
 ##############################################################################
@@ -67,7 +78,7 @@ for i,_ in df.iterrows():
         # eventually when i = j_nb later in the loop or before this occurs
         if i_geom.intersection(j_nb_geom).type == 'Point':
             del df.at[i, 'neighbors'][j]
-
+#%%
 ##############################################################################
 ###### SETTING PRECINCT IDs ##################################################
 ##############################################################################
@@ -97,7 +108,8 @@ while len(prec_set_list) > 0:
         
     # set new prec_set_list
     prec_set_list = prec_set_list_new
-    
+
+#%%
 ##############################################################################
 ###### CREATE PRECINCTS USING ID #############################################
 ##############################################################################
@@ -306,12 +318,9 @@ df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
 df_prec = df_prec.drop(columns=['neighbors'])
 df_prec.to_file(out_folder + '/' + out_name + '.shp')
 
-
-
-
-
-
-
+# Copy PRJ file if it exists
+if prj_exists:
+    shutil.copy(prj_path, out_folder + '/' + out_name + '.shp')
 
 
 

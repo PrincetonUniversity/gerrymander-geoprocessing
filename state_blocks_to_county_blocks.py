@@ -12,7 +12,7 @@ import re
 import operator
 import pickle
 import os
-#%%
+import shutil
 
 # Define paths
 county_fips_path = 'G:/Team Drives/princeton_gerrymandering_project/mapping/' \
@@ -32,12 +32,25 @@ census_shape_path = census_shape_folder + state + census_filename
 state_shape_folder = 'G:/Team Drives/princeton_gerrymandering_project/' \
 'mapping/VA/Precinct Shapefile Collection/Virginia precincts'
 
-#%%
+# Delete CPG file
+cpg_path = ''.join(census_shape_path.split('.')[:-1]) + '.cpg'
+if os.path.exists(cpg_path):
+    os.remove(cpg_path)
+
+# Define projection path and check if it exists
+prj_exists = False
+prj_path = ''.join(census_shape_path.split('.')[:-1]) + '.prj'
+if os.path.exists(prj_path):
+    prj_exists = True
+    
+    
+#%% THIS TAKES REALLY LONG. Should Be able to skip once pickle file is saved
 # Import census state file and save to pickle
 df = gpd.read_file(census_shape_path)
 df.to_pickle(census_shape_folder + state + '/census_df.pkl')
 
-#%%
+#%% This also only takes kinda long
+
 # Read in df and make county fips an int
 df = pd.read_pickle(census_shape_folder + state + '/census_df.pkl')
 
@@ -57,17 +70,16 @@ in_df = in_df[in_df['state'] == state]
 # Set index into locality
 in_df = in_df.set_index('locality')
 
-#%%
+
 # Get the names of all of the folders in a list in order
 folder_names = os.listdir(state_shape_folder)
 folder_names.sort()
 locality_names = list(in_df.index)
 
-#%%
 # Create booleans to determine whether to add every shapefile or certain ones
 convert_every_locality = True
 convert_list_locality = False
-localities_to_convert = ['Accomack County']
+localities_to_convert =  ['Virginia Beach']
 
 # Get the number of folder name matches
 folder_count = 0
@@ -104,9 +116,17 @@ if convert_every_locality:
             # Save county shapefile
             df_county = df[df['COUNTYFP10'] == fips]
             df_county = gpd.GeoDataFrame(df_county, geometry='geometry')
-            out_path = state_shape_folder + '/' + local + '/' + local +\
-            '_census_block.shp'
-            df_county.to_file(out_path)
+            filename = local + ' census block'
+            filename = filename.replace(' ', '_')
+            out_path = state_shape_folder + '/' + local + '/' + filename
+
+            out_path_shp = out_path + '.shp'
+            df_county.to_file(out_path_shp)
+            
+            # Copy PRJ file if it exists
+            out_path_prj = out_path + '.prj'
+            if prj_exists:
+                shutil.copy(prj_path, out_path_prj)
     else:
         print('\nChange FIPS text file to match folders')
 
@@ -127,9 +147,16 @@ elif convert_list_locality:
             # Save county shapefile
             df_county = df[df['COUNTYFP10'] == fips]
             df_county = gpd.GeoDataFrame(df_county, geometry='geometry')
-            out_path = state_shape_folder + '/' + local + '/' + local +\
-            '_census_block.shp'
-            df_county.to_file(out_path)
+            filename = local + ' census block'
+            filename = filename.replace(' ', '_')
+            out_path = state_shape_folder + '/' + local + '/' + filename
+            
+            out_path_shp = out_path + '.shp'
+            df_county.to_file(out_path_shp)
+            
+            # Copy PRJ file if it exists
+            out_path_prj = out_path + '.prj'
+            if prj_exists:
+                shutil.copy(prj_path, out_path_prj)
     else:
         print('\nChange FIPS text file to match folders in convert list')
-     
