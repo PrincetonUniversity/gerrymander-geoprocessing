@@ -11,9 +11,10 @@ from shapely.geometry import Polygon
 from collections import Counter
 import csv
 import pickle
+import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Remaining_PDF_Digitization.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Remaining_PDF_Digitization2.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -395,7 +396,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     for i, color in enumerate(df['color'].unique()):
         df.loc[df['color'] == color, 'region'] = i
         
-    df.to_pickle(out_folder + '/after_color_assignment.pkl')
     ###########################################################################
     ###### CREATE PRECINCTS USING ID ##########################################
     ###########################################################################
@@ -535,18 +535,12 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
-            
-    # Update precinct assignments to census blocks before reindexing
-    for ix, elem in enumerate(df.index):
-        df.loc[(df['region'] == elem), 'region'] = ix
     
     # reset index for df_prec
     df_prec = df_prec.reset_index(drop=True)
     
     # Get rook contiguity through a dictionary and calculate the shared_perims
     df_prec = real_rook_contiguity(df_prec, 'dict')
-    
-    df_prec.to_pickle(out_folder + '/before_shared_perims.pkl')
     df_prec = get_shared_perims(df_prec)
     
     # get list of precinct indices to keep
@@ -589,13 +583,52 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
         # delete current precinct
         df_prec = df_prec.drop(i)
         
-        # update 
-        df.loc[(df['region'] == i), 'region'] = ix
+    ###########################################################################
+    ###### Assign Census Blocks to Regions ####################################
+    ###########################################################################
         
-    # Set precinct values to be between 0 and num_regions - 1
-    for ix, elem in enumerate(df.index):
-        df.loc[(df['region'] == elem), 'region'] = ix
+    # reset index for df_prec
     df_prec = df_prec.reset_index(drop=True)
+    
+    # set region values
+    for i in range(len(df_prec)):
+        df_prec.at[i, 'region'] = i
+    
+    # construct spatial tree for precincts
+    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
+    pr_si = df_prec.sindex
+    
+    # iterate through every census block, i is the GEOID10 of the precinct
+    for i, _ in df.iterrows():
+
+        # let census_block equal the geometry of the census_block. Note: later
+        # census_block.bounds is the minimum bounding rectangle for the cb
+        census_block = df.at[i, 'geometry']
+        
+        # Find which MBRs for districts intersect with our cb MBR
+        # MBR: Minimum Bounding Rectangle
+        poss_pr = [df_prec.index[i] for i in \
+                   list(pr_si.intersection(census_block.bounds))]
+        
+        # If precinct MBR only intersects one district's MBR, set the district
+        if len(poss_pr) == 1:
+            PR = poss_pr[0]
+        else:
+            # for cases with multiple matches, compare fractional area
+            frac_area = {}
+            found_majority = False
+            for j in poss_pr:
+                if not found_majority:
+                    area = df_prec.at[j, 'geometry'].intersection(\
+                                     census_block).area / census_block.area
+                    # Majority area means, we can assign district
+                    if area > .5:
+                        found_majority = True
+                    frac_area[j] = area
+            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
+    
+        # Assign census block region to PR
+        df.at[i, 'region'] = PR
     
     ###########################################################################
     ###### Save Shapefiles ####################################################
@@ -609,10 +642,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     out_name = local + '_precincts'
     out_name.replace(' ', '_')
     
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
     df_prec = df_prec.drop(columns=['neighbors'])
-    df_prec['region'] = pd.to_numeric(df_prec['region'], \
-           downcast='integer')
     df_prec.to_file(out_folder + '/' + out_name + '.shp')
         
     return len(df)
