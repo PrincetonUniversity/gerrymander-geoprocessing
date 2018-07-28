@@ -19,90 +19,88 @@ csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
-    #try:
-    # Import Google Drive path
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        data = [r for r in reader]
-    direc_path = data[0][1]
-
-    # Import table from CSV into pandas dataframe
-    name_list = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
-                 'Image Path']
-    in_df = pd.read_csv(csv_path, header=1, names=name_list)
-
-    # Initialize out_df, which contains the results of the transfers and
-    # contains what will be copied into the conversion page of the Google
-    # sheet
-    new_cols = ['Result', 'Time Taken', 'Num Census Blocks']
-    out_df = pd.DataFrame(columns=new_cols)
+    try:
+        # Import Google Drive path
+        with open(csv_path) as f:
+            reader = csv.reader(f)
+            data = [r for r in reader]
+        direc_path = data[0][1]
     
-    # Iterate through each county we are creating a shapefile for
-    for i, _ in in_df.iterrows():
-        
-        # Create shapefile out of precincts
-        #try:
-        # Begin Start time
-        start_time = time.time()
-        
-        # Set unique variables for the current county
-        local = in_df.at[i, 'Locality']
-        num_regions = in_df.at[i, 'Num Regions']
-        shape_path = in_df.at[i, 'Census Path']
-        out_folder = in_df.at[i, 'Out Folder']
-        img_path = in_df.at[i, 'Image Path']
-
-        # Change census shapefile path and out folder if set to default
-        if shape_path:
-            census_filename = local + '_census_block.shp'
-            census_filename = census_filename.replace(' ', '_')
-            shape_path = direc_path + '/' + local + '/' + \
-                            census_filename
-            
-        if out_folder:
-            out_folder = direc_path + '/' + local
-            
-        # set ouput shapefile name
-        out_name = local + '_precinct'
-        out_name = out_name.replace(' ', '_')
-        
-        # Convert image to tiff if not already a tiff
-        ext = ['tif', 'tiff']
-        img_ext = img_path.split('.')[-1]
-        if img_ext not in ext:
-            im = Image.open(img_path)
-            img_path =  out_folder + '/' + local + 'Cropped Image.tif'
-            im.save(img_path)
-        
-        # Generate precinct shapefile and add corresponding precinct
-        # index to the attribute field of the census block shapefile
-        print(local)
-        result = generate_precinct_shapefile(local, num_regions, \
-                                              shape_path, out_folder, \
-                                              img_path)
-        
-        # Place Results in out_df
-        row = len(out_df)
-        out_df.at[row, 'Result'] = 'SUCCESS'
-        out_df.at[row, 'Time Taken'] = time.time() - start_time
-        out_df.at[row, 'Num Census Blocks'] = result
-            
-        # Shapefile creation failed
-# =============================================================================
-#             except Exception as e:
-#                 print(e)
-#                 print('ERROR:' + in_df.at[i, 'Locality'])
-#                 row = len(out_df)
-#                 out_df.at[row, 'Result'] = 'FAILURE'
-# =============================================================================
+        # Import table from CSV into pandas dataframe
+        name_list = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
+                     'Image Path']
+        in_df = pd.read_csv(csv_path, header=1, names=name_list)
     
-    # Create path to output our results CSV file and output
-    csv_out_path = csv_path[:-4] + ' RESULTS.csv'
-    out_df.to_csv(csv_out_path)
+        # Initialize out_df, which contains the results of the transfers and
+        # contains what will be copied into the conversion page of the Google
+        # sheet
+        new_cols = ['Result', 'Time Taken', 'Num Census Blocks']
+        out_df = pd.DataFrame(columns=new_cols)
+        
+        # Iterate through each county we are creating a shapefile for
+        for i, _ in in_df.iterrows():
+            
+            # Create shapefile out of precincts
+            try:
+                # Begin Start time
+                start_time = time.time()
+                
+                # Set unique variables for the current county
+                local = in_df.at[i, 'Locality']
+                num_regions = in_df.at[i, 'Num Regions']
+                shape_path = in_df.at[i, 'Census Path']
+                out_folder = in_df.at[i, 'Out Folder']
+                img_path = in_df.at[i, 'Image Path']
+        
+                # Change census shapefile path and out folder if set to default
+                if shape_path:
+                    census_filename = local + '_census_block.shp'
+                    census_filename = census_filename.replace(' ', '_')
+                    shape_path = direc_path + '/' + local + '/' + \
+                                    census_filename
+                    
+                if out_folder:
+                    out_folder = direc_path + '/' + local
+                    
+                # set ouput shapefile name
+                out_name = local + '_precinct'
+                out_name = out_name.replace(' ', '_')
+                
+                # Convert image to tiff if not already a tiff
+                ext = ['tif', 'tiff']
+                img_ext = img_path.split('.')[-1]
+                if img_ext not in ext:
+                    im = Image.open(img_path)
+                    img_path =  out_folder + '/' + local + 'Cropped Image.tif'
+                    im.save(img_path)
+                
+                # Generate precinct shapefile and add corresponding precinct
+                # index to the attribute field of the census block shapefile
+                print(local)
+                result = generate_precinct_shapefile(local, num_regions, \
+                                                      shape_path, out_folder, \
+                                                      img_path)
+                
+                # Place Results in out_df
+                row = len(out_df)
+                out_df.at[row, 'Result'] = 'SUCCESS'
+                out_df.at[row, 'Time Taken'] = time.time() - start_time
+                out_df.at[row, 'Num Census Blocks'] = result
+            
+            # Shapefile creation failed
+            except Exception as e:
+                print(e)
+                print('ERROR:' + in_df.at[i, 'Locality'])
+                row = len(out_df)
+                out_df.at[row, 'Result'] = 'FAILURE'
+    
+        # Create path to output our results CSV file and output
+        csv_out_path = csv_path[:-4] + ' RESULTS.csv'
+        out_df.to_csv(csv_out_path)
     
     # CSV file could not be read in or exported
-    #except:
-     #   print('ERROR: Path for csv file does not exist OR close RESULTS csv')
+    except:
+        print('ERROR: Path for csv file does not exist OR close RESULTS csv')
         
 def pt_to_pixel(coord, init_len, init_min, fin_len, rnd=False):
     ''' This function will convert a coordinate into its corresponding pixel
