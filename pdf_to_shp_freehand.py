@@ -417,9 +417,15 @@ def generate_precinct_shp_free(local, num_regions, shape_path, out_folder):
         df_prec.at[ix, 'geometry'] = df_prec.at[ix, 'geometry'].union\
             (df_prec.at[i, 'geometry'])
             
-        # delete neighbor reference to i
+        # delete neighbor reference to i and add reference for merge to key
         for key in cur_prec:
             df_prec.at[key, 'neighbors'].pop(i)
+            
+            ##-----------------------------------------------------------------
+            # get perimeter length for key in merge and set in 
+            # neighbor list
+            key_dist = df_prec.at[ix, 'neighbors'][key]
+            df_prec.at[key, 'neighbors'][ix] = key_dist
             
         # delete current precinct
         df_prec = df_prec.drop(i)

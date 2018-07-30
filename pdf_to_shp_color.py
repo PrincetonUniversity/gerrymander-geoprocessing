@@ -28,7 +28,7 @@ def main():
     
         # Import table from CSV into pandas dataframe
         name_list = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
-                     'Image Path']
+                     'Image Path', 'Colors']
         in_df = pd.read_csv(csv_path, header=1, names=name_list)
     
         # Initialize out_df, which contains the results of the transfers and
@@ -51,6 +51,7 @@ def main():
                 shape_path = in_df.at[i, 'Census Path']
                 out_folder = in_df.at[i, 'Out Folder']
                 img_path = in_df.at[i, 'Image Path']
+                num_colors = in_df.at[i, 'Colors']
         
                 # Change census shapefile path and out folder if set to default
                 if shape_path:
@@ -79,7 +80,7 @@ def main():
                 print(local)
                 result = generate_precinct_shapefile(local, num_regions, \
                                                       shape_path, out_folder, \
-                                                      img_path)
+                                                      img_path, num_colors)
                 
                 # Place Results in out_df
                 row = len(out_df)
@@ -324,9 +325,23 @@ def get_shared_perims(df):
                 
             df.at[i, 'neighbors'][key] = length
     return df
+
+def reduce_colors(img, num_colors):
+    ''' Generates an image reducing the number of colors to a number 
+    specified by the user. Uses Image.convert from PIL.
+    
+    Arguments:
+        img: original image in PIL Image format
+        num_colors: number of distinct colors in output file
+        
+        Output:
+            Modified image with reduced number of distinct RGB values'''
+    
+    conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
+    return conv_img.convert('RGB')
     
 def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
-                                img_path):
+                                img_path, colors=0):
     ''' Generates a precinct level shapefile from census block data and an 
     image cropped to a counties extents. Also updates the attribute table in
     the census block shapefile to have a precinct value.
@@ -341,8 +356,10 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     Output:
         Number of census blocks in the county
         '''        
-    # Convert image to array
+    # Convert image to array, color reducing if specified
     img = Image.open(img_path)
+    if colors > 0:
+        img = reduce_colors(img, colors)
     img_arr = np.asarray(img)
 
     # Delete CPG file if it exists
