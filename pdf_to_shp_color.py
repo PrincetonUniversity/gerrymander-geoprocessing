@@ -105,7 +105,7 @@ def main():
         
 def pt_to_pixel(coord, init_len, init_min, fin_len, rnd=False):
     ''' This function will convert a coordinate into its corresponding pixel
-    on the image. Transforming from coordinates in geometry to coordiantes in
+    on the image. Transforming from coordinates in geometry to coordinates in
     pixels. If transformed coordinates are less than 0, 0 will be returned. If
     transformed coordinates are greater than fin_len then fin_len will
     be returned. This is to assist indexing.
@@ -140,6 +140,10 @@ def pt_to_pixel(coord, init_len, init_min, fin_len, rnd=False):
          new = fin_len        
     return new
     
+
+def isBlack(color):
+    return (color[0] < 25 and color[1] < 25 and color[2] < 25)
+
 def most_common_color(img_getcolors):
     ''' This function will take in an image and return the most common color
     within the image
@@ -150,8 +154,12 @@ def most_common_color(img_getcolors):
     and the value of the color
     '''
     
+    # remove black pixels (probably just boundary, don't want to consider)
+    img_getcolors = [color for color in img_getcolors if not isBlack(color[1])]
+    
     # Convert color counts into numpy array
     arr = np.array([item[0] for item in img_getcolors])
+    
     # Get index of max color count
     max_ix = np.argmax(arr)
 
