@@ -14,8 +14,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Goochland_paint.csv"
-
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/southampton_redo.csv"
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -157,6 +156,9 @@ def most_common_color(img_getcolors):
     # remove black pixels (probably just boundary, don't want to consider)
     img_getcolors = [color for color in img_getcolors if not isBlack(color[1])]
     
+    if len(img_getcolors) == 0:
+        img_getcolors = [(1, (0, 0, 0))]
+    
     # Convert color counts into numpy array
     arr = np.array([item[0] for item in img_getcolors])
     
@@ -238,9 +240,7 @@ def image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
     # Invert y coordinates because image is indexed top down
     ymax_flip = img_ylen - ymin
     ymin_flip = img_ylen - ymax
-    
-    #print(xmin, xmax, ymin_flip, ymax_flip)
-    
+        
     # Slice array to get array for subimage
     subarray = img_arr[ymin_flip:ymax_flip, xmin:xmax]
     
