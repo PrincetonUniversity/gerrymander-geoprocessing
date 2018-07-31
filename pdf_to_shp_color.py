@@ -53,13 +53,13 @@ def main():
                 num_colors = in_df.at[i, 'Colors']
         
                 # Change census shapefile path and out folder if set to default
-                if shape_path:
+                if shape_path == 1:
                     census_filename = local + '_census_block.shp'
                     census_filename = census_filename.replace(' ', '_')
                     shape_path = direc_path + '/' + local + '/' + \
                                     census_filename
                     
-                if out_folder:
+                if out_folder == 1:
                     out_folder = direc_path + '/' + local
                     
                 # set ouput shapefile name

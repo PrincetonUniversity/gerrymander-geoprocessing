@@ -9,9 +9,10 @@ from shapely.geometry import Polygon
 from collections import Counter
 import csv
 import pickle
+import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/grayson_test_with_function.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Amelia_Amherst_July_31.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -47,13 +48,13 @@ def main():
                 out_folder = in_df.at[i, 'Out Folder']
 
                 # Change census shapefile path and out folder if set to default
-                if shape_path:
+                if shape_path == 1:
                     census_filename = local + '_census_block.shp'
                     census_filename = census_filename.replace(' ', '_')
                     shape_path = direc_path + '/' + local + '/' + \
                                     census_filename
                     
-                if out_folder:
+                if out_folder == 1:
                     out_folder = direc_path + '/' + local
                     
                 # set ouput shapefile name
@@ -65,7 +66,7 @@ def main():
                 print(local)
                 result = generate_precinct_shp_free(local, shape_path,\
                                                     out_folder)
-                
+
                 # Place Results in out_df
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'SUCCESS'
@@ -73,7 +74,8 @@ def main():
                 out_df.at[row, 'Num Census Blocks'] = result
                 
             # Shapefile creation failed
-            except:
+            except Exception as e:
+                print(e)
                 print('ERROR:' + in_df.at[i, 'Locality'])
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'FAILURE'
@@ -98,6 +100,7 @@ def real_rook_contiguity(df, struct_type='list'):
     # all point contiguity. Shapely rook contiguity sometimes assumes lines
     # with small lines are points
     w = ps.weights.Queen.from_dataframe(df, geom_col='geometry')
+    print('after queen')
     
     # Initialize neighbors column
     df['neighbors'] = pd.Series(dtype=object)   
@@ -261,12 +264,13 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Apply rook contiguity
     df = real_rook_contiguity(df)
     
+
     ###########################################################################
     ###### SETTING PRECINCT IDs ###############################################
     ###########################################################################
     
     # Initialize List to all elements with an ID
-    prec_set_list = list(df[df['region'] != None].index)
+    prec_set_list = list(df[df['ID'] != None].index)
     
     # Iterate until every census block has an ID
     while len(prec_set_list) > 0:
@@ -280,7 +284,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
             
             # Get neighbors with an ID equal to None
             nb_idnone = [j for j in  df.at[i, 'neighbors'] if \
-                         df.at[j, 'region'] == None]
+                         df.at[j, 'ID'] == None]
             
             #  Get ID of census block i and set unassigned neighbors to this 
             # value
@@ -299,19 +303,21 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     ###########################################################################
     
     # Get unique values in the df ID column
-    prec_region = list(df.region.unique())
+    prec_ID = list(df.ID.unique())
     
     # Create dataframe of precincts
     df_prec = pd.DataFrame(columns=['region', 'geometry'])
     
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # union
-    for i, elem in enumerate(prec_region):
-        df_poly = df[df['region'] == elem]
+    for i, elem in enumerate(prec_ID):
+        df_poly = df[df['ID'] == elem]
         polys = list(df_poly['geometry'])
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-        df_prec.at[i, 'region'] = elem
+        df_prec.at[i, 'region'] = i
         
+    del df['ID']
+    print('non-contiguous')
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -340,12 +346,13 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
     
+    print('merge donut')
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
-    
+    print(df_prec)
     df_prec = real_rook_contiguity(df_prec)
-    
+    print('after_rook')
     # Donut Hole Precinct Check
     # Get IDs of donut holes with only one neighbor
     donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
@@ -356,12 +363,14 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         for donut_hole in donut_holes:
             # find each donut's surrounding precinct
             donut = df_prec.at[donut_hole, 'neighbors'][0]
-            
+            print('before polys')
             # Combine geometries for donut holde
             polys = [df_prec.at[donut, 'geometry'], 
                      df_prec.at[donut_hole, 'geometry']]
+            
+            print('before union')
             df_prec.at[donut, 'geometry'] = shp.ops.cascaded_union(polys)
-
+            print('after union')
             # remove neighbor reference to donut hole precinct and delete
             donut_hole_index = df_prec.at[donut, 'neighbors'].index(donut_hole)
             del(df_prec.at[donut, 'neighbors'][donut_hole_index])
@@ -376,7 +385,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Create list of rows to drop at the end of the multiple contained check
     ids_to_drop = []
     
-    # Iterate over all precincts except the state boundary precinct
+    # Iterate over all precincts
     for i,_ in df_prec.iterrows():
         
         # Create polygon Poly for this precinct from its exterior coordinates. 
@@ -385,7 +394,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         # fully contained
         poly_coords = list(df_prec.at[i, 'geometry'].exterior.coords)
         poly = Polygon(poly_coords)
-        
+
         # Create list of contained neighbor id's to delete
         nb_ix_del = []
     
@@ -431,6 +440,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
 
+    print('merge regions')
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
@@ -491,17 +501,25 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     for i in range(len(df_prec)):
         df_prec.at[i, 'region'] = i
 
+    print('assign blocks')
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
     
     df = assign_blocks_to_regions(df, df_prec)
     
+    print('save shapefiles')
     ###########################################################################
     ###### Save Shapefiles ####################################################
     ###########################################################################
     
+# =============================================================================
+#     print(df.columns)
+#     print(df_prec.columns)
+# =============================================================================
+    
     # Save census block shapefile with updated attribute table
+    df = df.drop(columns=['neighbors'])
     df.to_file(shape_path)
     
     # Save Precinct Shapefile
