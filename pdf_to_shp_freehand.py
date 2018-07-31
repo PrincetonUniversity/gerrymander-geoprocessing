@@ -100,7 +100,6 @@ def real_rook_contiguity(df, struct_type='list'):
     # all point contiguity. Shapely rook contiguity sometimes assumes lines
     # with small lines are points
     w = ps.weights.Queen.from_dataframe(df, geom_col='geometry')
-    print('after queen')
     
     # Initialize neighbors column
     df['neighbors'] = pd.Series(dtype=object)   
@@ -193,47 +192,6 @@ def assign_blocks_to_regions(cb_df, reg_df):
     # construct spatial tree for precincts
     reg_df = gpd.GeoDataFrame(reg_df, geometry='geometry')
     pr_si = reg_df.sindex
-<<<<<<< HEAD
-=======
-    
-    # instantiate empty 'region' column in cb_df
-    cb_df['region'] = np.nan
-    
-    # iterate through every census block, i is the GEOID10 of the precinct
-    for i, _ in cb_df.iterrows():
-
-        # let census_block equal the geometry of the census_block. Note: later
-        # census_block.bounds is the minimum bounding rectangle for the cb
-        census_block = cb_df.at[i, 'geometry']
-        
-        # Find which MBRs for districts intersect with our cb MBR
-        # MBR: Minimum Bounding Rectangle
-        poss_pr = [reg_df.index[i] for i in \
-                   list(pr_si.intersection(census_block.bounds))]
-        
-        # If precinct MBR only intersects one district's MBR, set the district
-        if len(poss_pr) == 1:
-            PR = poss_pr[0]
-        else:
-            # for cases with multiple matches, compare fractional area
-            frac_area = {}
-            found_majority = False
-            for j in poss_pr:
-                if not found_majority:
-                    area = reg_df.at[j, 'geometry'].intersection(\
-                                     census_block).area / census_block.area
-                    # Majority area means, we can assign district
-                    if area > .5:
-                        found_majority = True
-                    frac_area[j] = area
-            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
-    
-        # Assign census block region to PR
-        cb_df.at[i, 'region'] = PR
-        
-    # return modified cb_df
-    return cb_df
->>>>>>> b87b3851e4a2f3d9df9e253b5d2c9e3d076286db
     
     # instantiate empty 'region' column in cb_df
     cb_df['region'] = np.nan
@@ -358,7 +316,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         df_prec.at[i, 'region'] = i
         
     del df['ID']
-    print('non-contiguous')
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -387,13 +344,11 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
     
-    print('merge donut')
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
-    print(df_prec)
     df_prec = real_rook_contiguity(df_prec)
-    print('after_rook')
+
     # Donut Hole Precinct Check
     # Get IDs of donut holes with only one neighbor
     donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
@@ -404,14 +359,13 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         for donut_hole in donut_holes:
             # find each donut's surrounding precinct
             donut = df_prec.at[donut_hole, 'neighbors'][0]
-            print('before polys')
+
             # Combine geometries for donut holde
             polys = [df_prec.at[donut, 'geometry'], 
                      df_prec.at[donut_hole, 'geometry']]
             
-            print('before union')
             df_prec.at[donut, 'geometry'] = shp.ops.cascaded_union(polys)
-            print('after union')
+
             # remove neighbor reference to donut hole precinct and delete
             donut_hole_index = df_prec.at[donut, 'neighbors'].index(donut_hole)
             del(df_prec.at[donut, 'neighbors'][donut_hole_index])
@@ -481,7 +435,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
 
-    print('merge regions')
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
@@ -542,33 +495,19 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     for i in range(len(df_prec)):
         df_prec.at[i, 'region'] = i
 
-<<<<<<< HEAD
-    print('assign blocks')
-    ###########################################################################
-    ###### Assign Census Blocks to Regions ####################################
-    ###########################################################################
-=======
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
     
     df = assign_blocks_to_regions(df, df_prec)
->>>>>>> b87b3851e4a2f3d9df9e253b5d2c9e3d076286db
     
-    df = assign_blocks_to_regions(df, df_prec)
-    
-    print('save shapefiles')
     ###########################################################################
     ###### Save Shapefiles ####################################################
     ###########################################################################
     
-# =============================================================================
-#     print(df.columns)
-#     print(df_prec.columns)
-# =============================================================================
     
     # Save census block shapefile with updated attribute table
-    df = df.drop(columns=['neighbors'])
+    df = df.drop(columns=['neighbors'])  
     df.to_file(shape_path)
     
     # Save Precinct Shapefile
