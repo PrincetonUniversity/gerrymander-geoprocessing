@@ -193,6 +193,47 @@ def assign_blocks_to_regions(cb_df, reg_df):
     # construct spatial tree for precincts
     reg_df = gpd.GeoDataFrame(reg_df, geometry='geometry')
     pr_si = reg_df.sindex
+<<<<<<< HEAD
+=======
+    
+    # instantiate empty 'region' column in cb_df
+    cb_df['region'] = np.nan
+    
+    # iterate through every census block, i is the GEOID10 of the precinct
+    for i, _ in cb_df.iterrows():
+
+        # let census_block equal the geometry of the census_block. Note: later
+        # census_block.bounds is the minimum bounding rectangle for the cb
+        census_block = cb_df.at[i, 'geometry']
+        
+        # Find which MBRs for districts intersect with our cb MBR
+        # MBR: Minimum Bounding Rectangle
+        poss_pr = [reg_df.index[i] for i in \
+                   list(pr_si.intersection(census_block.bounds))]
+        
+        # If precinct MBR only intersects one district's MBR, set the district
+        if len(poss_pr) == 1:
+            PR = poss_pr[0]
+        else:
+            # for cases with multiple matches, compare fractional area
+            frac_area = {}
+            found_majority = False
+            for j in poss_pr:
+                if not found_majority:
+                    area = reg_df.at[j, 'geometry'].intersection(\
+                                     census_block).area / census_block.area
+                    # Majority area means, we can assign district
+                    if area > .5:
+                        found_majority = True
+                    frac_area[j] = area
+            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
+    
+        # Assign census block region to PR
+        cb_df.at[i, 'region'] = PR
+        
+    # return modified cb_df
+    return cb_df
+>>>>>>> b87b3851e4a2f3d9df9e253b5d2c9e3d076286db
     
     # instantiate empty 'region' column in cb_df
     cb_df['region'] = np.nan
@@ -501,10 +542,18 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     for i in range(len(df_prec)):
         df_prec.at[i, 'region'] = i
 
+<<<<<<< HEAD
     print('assign blocks')
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
+=======
+    ###########################################################################
+    ###### Assign Census Blocks to Regions ####################################
+    ###########################################################################
+    
+    df = assign_blocks_to_regions(df, df_prec)
+>>>>>>> b87b3851e4a2f3d9df9e253b5d2c9e3d076286db
     
     df = assign_blocks_to_regions(df, df_prec)
     
