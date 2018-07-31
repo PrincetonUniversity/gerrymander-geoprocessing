@@ -240,7 +240,12 @@ def image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
     # Invert y coordinates because image is indexed top down
     ymax_flip = img_ylen - ymin
     ymin_flip = img_ylen - ymax
+<<<<<<< HEAD
+    
+    
+=======
         
+>>>>>>> a0d1e27b94ee555475fc912a520b4a998867f493
     # Slice array to get array for subimage
     subarray = img_arr[ymin_flip:ymax_flip, xmin:xmax]
     
@@ -347,6 +352,62 @@ def reduce_colors(img, num_colors):
     
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
     return conv_img.convert('RGB')
+
+def assign_blocks_to_regions(cb_df, reg_df):
+    ''' Adds a 'region' column to dataframe of census blocks using areal
+    interpolation with a dataframe with region names and geometries.
+    
+    Arguments:
+        cb_df: dataframe with census blocks
+        reg_df: dataframe with regions
+
+    Output:
+        Modified cb_df with 'region' column
+
+    Note: this will overwrite the 'region' column in cb_df if it already
+        exists.'''
+        
+    # construct spatial tree for precincts
+    reg_df = gpd.GeoDataFrame(reg_df, geometry='geometry')
+    pr_si = reg_df.sindex
+    
+    # instantiate empty 'region' column in cb_df
+    cb_df['region'] = np.nan
+    
+    # iterate through every census block, i is the GEOID10 of the precinct
+    for i, _ in cb_df.iterrows():
+
+        # let census_block equal the geometry of the census_block. Note: later
+        # census_block.bounds is the minimum bounding rectangle for the cb
+        census_block = cb_df.at[i, 'geometry']
+        
+        # Find which MBRs for districts intersect with our cb MBR
+        # MBR: Minimum Bounding Rectangle
+        poss_pr = [reg_df.index[i] for i in \
+                   list(pr_si.intersection(census_block.bounds))]
+        
+        # If precinct MBR only intersects one district's MBR, set the district
+        if len(poss_pr) == 1:
+            PR = poss_pr[0]
+        else:
+            # for cases with multiple matches, compare fractional area
+            frac_area = {}
+            found_majority = False
+            for j in poss_pr:
+                if not found_majority:
+                    area = reg_df.at[j, 'geometry'].intersection(\
+                                     census_block).area / census_block.area
+                    # Majority area means, we can assign district
+                    if area > .5:
+                        found_majority = True
+                    frac_area[j] = area
+            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
+    
+        # Assign census block region to PR
+        cb_df.at[i, 'region'] = PR
+        
+    # return modified cb_df
+    return cb_df
     
 def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
                                 img_path, colors=0):
@@ -605,53 +666,20 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
             
         # delete current precinct
         df_prec = df_prec.drop(i)
+            
+        # reset index for df_prec
+        df_prec = df_prec.reset_index(drop=True)
         
+        # set region values
+        for i in range(len(df_prec)):
+            df_prec.at[i, 'region'] = i
+            
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
-        
-    # reset index for df_prec
-    df_prec = df_prec.reset_index(drop=True)
-    
-    # set region values
-    for i in range(len(df_prec)):
-        df_prec.at[i, 'region'] = i
-    
-    # construct spatial tree for precincts
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    pr_si = df_prec.sindex
-    
-    # iterate through every census block, i is the GEOID10 of the precinct
-    for i, _ in df.iterrows():
 
-        # let census_block equal the geometry of the census_block. Note: later
-        # census_block.bounds is the minimum bounding rectangle for the cb
-        census_block = df.at[i, 'geometry']
-        
-        # Find which MBRs for districts intersect with our cb MBR
-        # MBR: Minimum Bounding Rectangle
-        poss_pr = [df_prec.index[i] for i in \
-                   list(pr_si.intersection(census_block.bounds))]
-        
-        # If precinct MBR only intersects one district's MBR, set the district
-        if len(poss_pr) == 1:
-            PR = poss_pr[0]
-        else:
-            # for cases with multiple matches, compare fractional area
-            frac_area = {}
-            found_majority = False
-            for j in poss_pr:
-                if not found_majority:
-                    area = df_prec.at[j, 'geometry'].intersection(\
-                                     census_block).area / census_block.area
-                    # Majority area means, we can assign district
-                    if area > .5:
-                        found_majority = True
-                    frac_area[j] = area
-            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
-    
-        # Assign census block region to PR
-        df.at[i, 'region'] = PR
+            
+    df = assign_blocks_to_regions(df, df_prec)
     
     ###########################################################################
     ###### Save Shapefiles ####################################################
