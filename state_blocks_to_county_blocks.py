@@ -77,9 +77,9 @@ folder_names.sort()
 locality_names = list(in_df.index)
 
 # Create booleans to determine whether to add every shapefile or certain ones
-convert_every_locality = True
-convert_list_locality = False
-localities_to_convert =  ['Virginia Beach']
+convert_every_locality = False
+convert_list_locality = True
+localities_to_convert =  ['Southampton County']
 
 # Get the number of folder name matches
 folder_count = 0

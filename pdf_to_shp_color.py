@@ -14,7 +14,8 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/southampton_redo.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Galax Test.csv"
+
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -240,7 +241,7 @@ def image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
     # Invert y coordinates because image is indexed top down
     ymax_flip = img_ylen - ymin
     ymin_flip = img_ylen - ymax
-        
+
     # Slice array to get array for subimage
     subarray = img_arr[ymin_flip:ymax_flip, xmin:xmax]
     
@@ -347,6 +348,62 @@ def reduce_colors(img, num_colors):
     
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
     return conv_img.convert('RGB')
+
+def assign_blocks_to_regions(cb_df, reg_df):
+    ''' Adds a 'region' column to dataframe of census blocks using areal
+    interpolation with a dataframe with region names and geometries.
+    
+    Arguments:
+        cb_df: dataframe with census blocks
+        reg_df: dataframe with regions
+
+    Output:
+        Modified cb_df with 'region' column
+
+    Note: this will overwrite the 'region' column in cb_df if it already
+        exists.'''
+        
+    # construct spatial tree for precincts
+    reg_df = gpd.GeoDataFrame(reg_df, geometry='geometry')
+    pr_si = reg_df.sindex
+    
+    # instantiate empty 'region' column in cb_df
+    cb_df['region'] = np.nan
+    
+    # iterate through every census block, i is the GEOID10 of the precinct
+    for i, _ in cb_df.iterrows():
+
+        # let census_block equal the geometry of the census_block. Note: later
+        # census_block.bounds is the minimum bounding rectangle for the cb
+        census_block = cb_df.at[i, 'geometry']
+        
+        # Find which MBRs for districts intersect with our cb MBR
+        # MBR: Minimum Bounding Rectangle
+        poss_pr = [reg_df.index[i] for i in \
+                   list(pr_si.intersection(census_block.bounds))]
+        
+        # If precinct MBR only intersects one district's MBR, set the district
+        if len(poss_pr) == 1:
+            PR = poss_pr[0]
+        else:
+            # for cases with multiple matches, compare fractional area
+            frac_area = {}
+            found_majority = False
+            for j in poss_pr:
+                if not found_majority:
+                    area = reg_df.at[j, 'geometry'].intersection(\
+                                     census_block).area / census_block.area
+                    # Majority area means, we can assign district
+                    if area > .5:
+                        found_majority = True
+                    frac_area[j] = area
+            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
+    
+        # Assign census block region to PR
+        cb_df.at[i, 'region'] = PR
+        
+    # return modified cb_df
+    return cb_df
     
 def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
                                 img_path, colors=0):
@@ -419,6 +476,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     for i, color in enumerate(df['color'].unique()):
         df.loc[df['color'] == color, 'region'] = i
         
+    print('create precincts')
     ###########################################################################
     ###### CREATE PRECINCTS USING ID ##########################################
     ###########################################################################
@@ -436,6 +494,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
         df_prec.at[i, 'region'] = prec_id[i]
         
+    print('non-contiguous')
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -464,6 +523,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
     
+    print('donut holes')
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
@@ -555,6 +615,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
 
+    print('merge precincts')
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
@@ -565,34 +626,35 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     # Get rook contiguity through a dictionary and calculate the shared_perims
     df_prec = real_rook_contiguity(df_prec, 'dict')
     df_prec = get_shared_perims(df_prec)
-    
+
     # get list of precinct indices to keep
     for i, _ in df_prec.iterrows():
         df_prec.at[i, 'area'] = df_prec.at[i, 'geometry'].area
     arr = np.array(df_prec['area'])
+    
     precincts_to_merge = arr.argsort()[ : -num_regions]
     
     # Iterate through indexes of small "fake" precincts
     for i in precincts_to_merge:
-        
+
         # update neighbors and shared_perims
         cur_prec = df_prec.at[i, 'neighbors']
         ix = max(cur_prec, key=cur_prec.get)
         merge_prec = df_prec.at[ix, 'neighbors']
-        
+
         # merge dictionaries
         merge_prec = Counter(merge_prec) + Counter(cur_prec)
-        
+
         # remove key to itself
         merge_prec.pop(ix)
-        
+
         # set neighbor dictionary in dataframe
         df_prec.at[ix, 'neighbors'] = merge_prec
         
         # merge geometry
         df_prec.at[ix, 'geometry'] = df_prec.at[ix, 'geometry'].union\
             (df_prec.at[i, 'geometry'])
-            
+        
         # delete neighbor reference to i and add reference for merge to key
         for key in list(cur_prec):
             df_prec.at[key, 'neighbors'].pop(i)
@@ -602,56 +664,23 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
             # neighbor list
             key_dist = df_prec.at[ix, 'neighbors'][key]
             df_prec.at[key, 'neighbors'][ix] = key_dist
-            
-        # delete current precinct
-        df_prec = df_prec.drop(i)
+        
+    # delete all merged precincts
+    df_prec = df_prec.drop(precincts_to_merge)
+        
+    # reset index for df_prec
+    df_prec = df_prec.reset_index(drop=True)
+        
+    # set region values
+    for i in range(len(df_prec)):
+        df_prec.at[i, 'region'] = i
         
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
-        
-    # reset index for df_prec
-    df_prec = df_prec.reset_index(drop=True)
-    
-    # set region values
-    for i in range(len(df_prec)):
-        df_prec.at[i, 'region'] = i
-    
-    # construct spatial tree for precincts
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    pr_si = df_prec.sindex
-    
-    # iterate through every census block, i is the GEOID10 of the precinct
-    for i, _ in df.iterrows():
 
-        # let census_block equal the geometry of the census_block. Note: later
-        # census_block.bounds is the minimum bounding rectangle for the cb
-        census_block = df.at[i, 'geometry']
-        
-        # Find which MBRs for districts intersect with our cb MBR
-        # MBR: Minimum Bounding Rectangle
-        poss_pr = [df_prec.index[i] for i in \
-                   list(pr_si.intersection(census_block.bounds))]
-        
-        # If precinct MBR only intersects one district's MBR, set the district
-        if len(poss_pr) == 1:
-            PR = poss_pr[0]
-        else:
-            # for cases with multiple matches, compare fractional area
-            frac_area = {}
-            found_majority = False
-            for j in poss_pr:
-                if not found_majority:
-                    area = df_prec.at[j, 'geometry'].intersection(\
-                                     census_block).area / census_block.area
-                    # Majority area means, we can assign district
-                    if area > .5:
-                        found_majority = True
-                    frac_area[j] = area
-            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
-    
-        # Assign census block region to PR
-        df.at[i, 'region'] = PR
+    print('assign_blocks')
+    df = assign_blocks_to_regions(df, df_prec)
     
     ###########################################################################
     ###### Save Shapefiles ####################################################
@@ -665,6 +694,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     out_name = local + '_precincts'
     out_name.replace(' ', '_')
     
+    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
     df_prec = df_prec.drop(columns=['neighbors'])
     df_prec.to_file(out_folder + '/' + out_name + '.shp')
         

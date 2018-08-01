@@ -12,7 +12,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Amelia_Amherst_July_31.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Digitization_July_31.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -516,8 +516,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
     df_prec = df_prec.drop(columns=['neighbors'])
-    df_prec['region'] = pd.to_numeric(df_prec['region'], \
-           downcast='integer')
     df_prec.to_file(out_folder + '/' + out_name + '.shp')
         
     return len(df)
