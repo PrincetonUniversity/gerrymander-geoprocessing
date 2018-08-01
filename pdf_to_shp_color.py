@@ -143,6 +143,39 @@ def pt_to_pixel(coord, init_len, init_min, fin_len, rnd=False):
 def isBlack(color):
     return (color[0] < 25 and color[1] < 25 and color[2] < 25)
 
+def random_pt_in_triangle(triangle):
+    ''' This function outputs a uniformly random point inside a triangle
+    (given as a Shapely polygon), according to the algorithm 
+    described at http://mathworld.wolfram.com/TrianglePointPicking.html''
+    
+    Argument:
+        triangle: Shapely polygon
+        
+    Output: Shapely Point drawn randomly from inside triangle'''
+    
+    # get list of vertices (cut off last element; first point is repeated)
+    vertices = np.asarray(triangle.boundary.coords)[:3]
+    
+    # assuming that vertices[0] is at (0,0), get coordinates of other vertices
+    v_1 = vertices[1] - vertices[0]
+    v_2 = vertices[2] - vertices[0]
+    
+    # select random point in parallelogram created by vectors v_1 and v_2
+    # r,s are random in [0, 1)
+    r = np.random.random_sample()
+    s = np.random.random_sample()
+    pt = Point(vertices[0] + r * v_1 + s * v_2)
+    
+    # refelct pt to put it in the triangle if it is not inside
+    if not triangle.contains(pt):
+        pt = Point(vertices[0] + (1-r) * v_1 + (1-s) * v_2)
+        
+    # return the random point
+    return pt
+    
+    
+    
+    
 def most_common_color(img_getcolors):
     ''' This function will take in an image and return the most common color
     within the image
@@ -167,6 +200,7 @@ def most_common_color(img_getcolors):
 
     # return the color that is found the most
     return img_getcolors[max_ix][1]
+
     
 def image_bound_box(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
                     shp_xmin, shp_ymin):
@@ -228,7 +262,7 @@ def image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
     # Calculate distance from centroid that will make a square of the same
     # area as the polygon. sqrt(area) / 2
     
-    # CHANGED TO HALF OF AREA
+    # CHANGED TO 1/4 OF AREA
     d = math.sqrt(area) / 2
     
     # Convert boundaries into pixel coordinate system
@@ -342,8 +376,8 @@ def reduce_colors(img, num_colors):
         img: original image in PIL Image format
         num_colors: number of distinct colors in output file
         
-        Output:
-            Modified image with reduced number of distinct RGB values'''
+    Output:
+        Modified image with reduced number of distinct RGB values'''
     
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
     return conv_img.convert('RGB')
@@ -525,32 +559,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     ###########################################################################
     
     df_prec = real_rook_contiguity(df_prec)
-    
-    # Donut Hole Precinct Check
-    # Get IDs of donut holes with only one neighbor
-    donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
-        
-    # Loop until no more donuts exist. Must loop due to concentric precincts
-    while len(donut_holes) != 0:
-        # Iterate over each donut hole precinct
-        for donut_hole in donut_holes:
-            # find each donut's surrounding precinct
-            donut = df_prec.at[donut_hole, 'neighbors'][0]
-            
-            # Combine geometries for donut holde
-            polys = [df_prec.at[donut, 'geometry'], 
-                     df_prec.at[donut_hole, 'geometry']]
-            df_prec.at[donut, 'geometry'] = shp.ops.cascaded_union(polys)
-
-            # remove neighbor reference to donut hole precinct and delete
-            donut_hole_index = df_prec.at[donut, 'neighbors'].index(donut_hole)
-            del(df_prec.at[donut, 'neighbors'][donut_hole_index])
-        
-        # Drop the rows in the dataframe for the donut holes that existed
-        df_prec = df_prec.drop(donut_holes)
-        
-        # get IDs of new donut holes created
-        donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
     
     # Multiple Contained Precincts Check
     # Create list of rows to drop at the end of the multiple contained check
