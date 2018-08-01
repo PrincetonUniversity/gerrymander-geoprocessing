@@ -14,8 +14,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Galax Test.csv"
-
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/southampton_redo.csv"
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -434,7 +433,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     
     # read in census block shapefile
     df = gpd.read_file(shape_path)
-    print(len(df))
+
     # Create a new color and district index series in the dataframe
     add_cols = ['color', 'region', 'area']
     for i in add_cols:
@@ -476,7 +475,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     for i, color in enumerate(df['color'].unique()):
         df.loc[df['color'] == color, 'region'] = i
         
-    print('create precincts')
     ###########################################################################
     ###### CREATE PRECINCTS USING ID ##########################################
     ###########################################################################
@@ -494,7 +492,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
         df_prec.at[i, 'region'] = prec_id[i]
         
-    print('non-contiguous')
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -522,8 +519,7 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
                 
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
-    
-    print('donut holes')
+
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
@@ -615,7 +611,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
 
-    print('merge precincts')
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
@@ -679,7 +674,6 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
 
-    print('assign_blocks')
     df = assign_blocks_to_regions(df, df_prec)
     
     ###########################################################################
