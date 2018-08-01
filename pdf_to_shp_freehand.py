@@ -313,9 +313,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         df_poly = df[df['ID'] == elem]
         polys = list(df_poly['geometry'])
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-        df_prec.at[i, 'region'] = i
         
-    del df['ID']
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -337,7 +335,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
             for region in precinct.geoms:
                 # Set geometry and id of new_shape
                 d = {}
-                d['region'] = df_prec.at[i, 'region']
                 d['geometry'] = region
                 df_prec = df_prec.append(d, ignore_index=True)
                 
@@ -349,33 +346,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     ###########################################################################
     df_prec = real_rook_contiguity(df_prec)
 
-    # Donut Hole Precinct Check
-    # Get IDs of donut holes with only one neighbor
-    donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
-        
-    # Loop until no more donuts exist. Must loop due to concentric precincts
-    while len(donut_holes) != 0:
-        # Iterate over each donut hole precinct
-        for donut_hole in donut_holes:
-            # find each donut's surrounding precinct
-            donut = df_prec.at[donut_hole, 'neighbors'][0]
-
-            # Combine geometries for donut holde
-            polys = [df_prec.at[donut, 'geometry'], 
-                     df_prec.at[donut_hole, 'geometry']]
-            
-            df_prec.at[donut, 'geometry'] = shp.ops.cascaded_union(polys)
-
-            # remove neighbor reference to donut hole precinct and delete
-            donut_hole_index = df_prec.at[donut, 'neighbors'].index(donut_hole)
-            del(df_prec.at[donut, 'neighbors'][donut_hole_index])
-        
-        # Drop the rows in the dataframe for the donut holes that existed
-        df_prec = df_prec.drop(donut_holes)
-        
-        # get IDs of new donut holes created
-        donut_holes = df_prec[df_prec['neighbors'].apply(len)==1].index
-    
     # Multiple Contained Precincts Check
     # Create list of rows to drop at the end of the multiple contained check
     ids_to_drop = []
@@ -387,8 +357,14 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         # This polygon is currently without an interior. The purpose of filling
         # the interior is to allow for an intersection to see if a neighbor is
         # fully contained
-        poly_coords = list(df_prec.at[i, 'geometry'].exterior.coords)
-        poly = Polygon(poly_coords)
+        
+        geometry = df_prec.at[i, 'geometry']
+        
+        if geometry.type == 'Polygon':
+            poly_coords = list(geometry.exterior.coords)
+            poly = Polygon(poly_coords)
+        else:
+            print ('Geometry is not a polygon during contained precincts check)
 
         # Create list of contained neighbor id's to delete
         nb_ix_del = []
@@ -485,8 +461,8 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
             key_dist = df_prec.at[ix, 'neighbors'][key]
             df_prec.at[key, 'neighbors'][ix] = key_dist
             
-        # delete current precinct
-        df_prec = df_prec.drop(i)
+    # delete current precinct
+    df_prec = df_prec.drop(precincts_to_merge)
         
     # Set precinct values to be between 0 and num_regions - 1
     df_prec = df_prec.reset_index(drop=True)
