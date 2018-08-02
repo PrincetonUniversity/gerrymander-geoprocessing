@@ -241,7 +241,6 @@ def save_shapefiles(cblock_df, prec_df, cblock_file_str, prec_file_str):
     if 'neighbors' in prec_df1.columns:
         prec_df1 = prec_df1.drop(columns=['neighbors'])
     prec_df1.to_file(prec_file_str)
-    print ('saved')
     
     return len(cblock_df1)
     
@@ -279,37 +278,48 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     
 
     ###########################################################################
-    ###### SETTING PRECINCT IDs ###############################################
+    ###### GIVE UNASSIGNED CENSUS BLOCKS AN ID ################################
     ###########################################################################
+
     
-    # Initialize List to all elements with an ID
-    prec_set_list = list(df[df['ID'] != None].index)
+    # Find indices of unassigned census blocks
+    ids = list(set(df['ID']))
+    df2 = df
+    for i in ids:
+        df2 = df2[df2['ID'] != i]
+    prec_to_set_list = list(df2.index)
     
+    # If there are unassigned precincts, an unwanted ID value (None) will exist
+    if len(prec_to_set_list) > 0:
+        num_regions -= 1
+
     # Iterate until every census block has an ID
-    while len(prec_set_list) > 0:
-        
-        # Initialize new prec_set_list to be empty
-        prec_set_list_new = []
-        
-        # Loop through the current prec_set_list of assigned census blocks
-        for i in prec_set_list:
+    while len(prec_to_set_list) > 0:
+                
+        # Loop through the current prec_to_set_list of unassigned census blocks
+        for i in prec_to_set_list:
+            
+            # initialize list of precincts failed to set on this round
+            # (use this structure to avoid deleting from a list while
+            # iterating over it)
+            prec_to_set_list_new = []
+            
             # Iterate through the neighbors of the current census block
             
-            # Get neighbors with an ID equal to None
-            nb_idnone = [j for j in  df.at[i, 'neighbors'] if \
-                         df.at[j, 'ID'] == None]
+            # Get neighbors with an ID not equal to None
+            nb_id = [j for j in  df.at[i, 'neighbors'] if \
+                         df.at[j, 'ID'] != None]
             
-            #  Get ID of census block i and set unassigned neighbors to this 
-            # value
-            i_id = df.at[i, 'ID']
-            for k in nb_idnone:
-                df.at[k, 'ID'] = i_id
+            # If there is a neighbor with an ID not equal to None
+            # set the ID to the neighbor's ID and remove i from list
+            if len(nb_id) > 0:
+                df.at[i, 'ID'] = df.at[nb_id[0], 'ID']
+            else:
+                prec_to_set_list_new.append(i)
         
-            # Add these elements to the new queue
-            prec_set_list_new += nb_idnone
-            
-        # set new prec_set_list
-        prec_set_list = prec_set_list_new
+        # update prec_to_set_list
+        prec_to_set_list = prec_to_set_list_new
+
         
     ###########################################################################
     ###### CREATE PRECINCTS USING ID ##########################################
@@ -330,9 +340,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         
     out_name = local + '_precincts'
     out_name.replace(' ', '_')
-    save_shapefiles(df, df_prec, shape_path,\
-                    out_folder + '/' + out_name + 'after_assignment' + '.shp' )
-        
+    
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -359,9 +367,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
                 
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
-    
-    save_shapefiles(df, df_prec, shape_path,\
-                    out_folder + '/' + out_name + 'after_noncontig' + '.shp' )
     
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
@@ -433,8 +438,6 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
     
-    save_shapefiles(df, df_prec, shape_path,\
-                    out_folder + '/' + out_name + 'after_merge_contained' + '.shp' )
 
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
@@ -454,8 +457,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         df_prec.at[i, 'area'] = df_prec.at[i, 'geometry'].area
     arr = np.array(df_prec['area'])
     precincts_to_merge = arr.argsort()[ : -num_regions]
-    
-    print (precincts_to_merge)
+
     # Iterate through indexes of small "fake" precincts
     for i in precincts_to_merge:
         
