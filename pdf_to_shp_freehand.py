@@ -12,7 +12,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Digitization_July_31.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Digitization_Russell.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -230,6 +230,20 @@ def assign_blocks_to_regions(cb_df, reg_df):
         
     # return modified cb_df
     return cb_df
+
+def save_shapefiles(cblock_df, prec_df, cblock_file_str, prec_file_str):
+    cblock_df1 = cblock_df
+    if 'neighbors' in cblock_df1.columns:
+        cblock_df1 = cblock_df1.drop(columns=['neighbors'])
+    cblock_df1.to_file(cblock_file_str)
+    
+    prec_df1 = gpd.GeoDataFrame(prec_df, geometry='geometry')
+    if 'neighbors' in prec_df1.columns:
+        prec_df1 = prec_df1.drop(columns=['neighbors'])
+    prec_df1.to_file(prec_file_str)
+    print ('saved')
+    
+    return len(cblock_df1)
     
 def generate_precinct_shp_free(local, shape_path, out_folder):
     ''' Generates a precinct level shapefile from census block data and a
@@ -314,6 +328,11 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
         polys = list(df_poly['geometry'])
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
         
+    out_name = local + '_precincts'
+    out_name.replace(' ', '_')
+    save_shapefiles(df, df_prec, shape_path,\
+                    out_folder + '/' + out_name + 'after_assignment' + '.shp' )
+        
     ###########################################################################
     ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
     ###########################################################################
@@ -341,6 +360,9 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Remove original noncontiguous precincts
     df_prec = df_prec.drop(drop_ix)
     
+    save_shapefiles(df, df_prec, shape_path,\
+                    out_folder + '/' + out_name + 'after_noncontig' + '.shp' )
+    
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
@@ -364,7 +386,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
             poly_coords = list(geometry.exterior.coords)
             poly = Polygon(poly_coords)
         else:
-            print ('Geometry is not a polygon during contained precincts check)
+            print('Geometry is not a polygon during contained precincts check')
 
         # Create list of contained neighbor id's to delete
         nb_ix_del = []
@@ -410,6 +432,9 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     
     # Drop contained precincts from the dataframe
     df_prec = df_prec.drop(ids_to_drop)
+    
+    save_shapefiles(df, df_prec, shape_path,\
+                    out_folder + '/' + out_name + 'after_merge_contained' + '.shp' )
 
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
@@ -430,6 +455,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     arr = np.array(df_prec['area'])
     precincts_to_merge = arr.argsort()[ : -num_regions]
     
+    print (precincts_to_merge)
     # Iterate through indexes of small "fake" precincts
     for i in precincts_to_merge:
         
@@ -481,20 +507,11 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     ###### Save Shapefiles ####################################################
     ###########################################################################
     
-    
-    # Save census block shapefile with updated attribute table
-    df = df.drop(columns=['neighbors'])  
-    df.to_file(shape_path)
-    
-    # Save Precinct Shapefile
     out_name = local + '_precincts'
     out_name.replace(' ', '_')
     
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    df_prec = df_prec.drop(columns=['neighbors'])
-    df_prec.to_file(out_folder + '/' + out_name + '.shp')
-        
-    return len(df)
-        
+    return save_shapefiles(df, df_prec, shape_path,\
+                    out_folder + '/' + out_name + '.shp' )
+            
 if __name__ == '__main__':
     main()
