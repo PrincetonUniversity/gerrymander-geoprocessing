@@ -172,10 +172,72 @@ def random_pt_in_triangle(triangle):
         
     # return the random point
     return pt
+
+
+def most_common_color(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
+                    shp_xmin, shp_ymin, sample_limit):
     
+    # triangulate polygon
+    triangles = shp.ops.triangulate(poly)
     
+    # make list of partial sums of areas so we can pick a random triangle
+    # weighted by area
+    areas = np.asarray([0])
+    for triangle in enumerate(triangles):
+        np.append(areas, areas[-1] + triangle.area)
     
+    # scale so last sum is 1
+    areas /= areas[-1]
     
+    # initialize data to monitor throughout the sampling process
+    # colors is a dictionary to store the number of pixels of each color
+    colors = {}
+    count = 0
+    color_to_return = None
+    stop_sampling = False
+    
+    # sample as long as none of the stop criteria have been reached
+    while not stop_sampling:
+        
+        # update count
+        count += 1
+        
+        # select a random triangle (weighted by area) in the triangulation
+        r = np.random.random_sample()
+        triangle = triangles[np.searchsorted(areas , r)]
+        
+        # select a point uniformly at random from this triangle
+        pt = random_pt_in_triangle(triangle)
+        
+        # get color of pixel that corresponds to this point 
+        ######### TODO TODO ##########
+        ######### UPDATE pt_to_pixel #######
+        color = [0, 0, 0]
+        
+        # add color to dictionary
+        if color not in colors:
+            colors[color] = 0
+        colors[color] += 1
+        
+        # decide if we are done sampling (every 10 samples)
+        if (count % 0 == 10):
+            
+            # find the most common color and its frequency
+            common = max(colors.iteritems(), key=operator.itemgetter(1))[0]
+            common_count = colors[common]
+            
+            # calculate z-score based on proportion test
+            # trying to get evidence that this color is over 50% frequent
+            # among all pixels
+            z_score = (2 * common_count / count - 1) * np.sqrt(count)
+            
+            # stop sampling if we have convincing evidence or we hit our limit
+            if (z_score > 4 or count > sample_limit):
+                color_to_return = common
+                stop_sampling = True
+    
+    return color_to_return
+        
 def most_common_color(img_getcolors):
     ''' This function will take in an image and return the most common color
     within the image
