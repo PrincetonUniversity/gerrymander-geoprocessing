@@ -79,7 +79,8 @@ def main():
                 print(local)
                 result = generate_precinct_shapefile(local, num_regions, \
                                                       shape_path, out_folder, \
-                                                      img_path, num_colors)
+                                                      img_path, 
+                                                      colors=num_colors)
                 
                 # Place Results in out_df
                 row = len(out_df)
@@ -139,6 +140,18 @@ def pt_to_pixel(coord, init_len, init_min, fin_len, rnd=False):
          new = fin_len        
     return new
     
+def pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, img_xmin, img_xlen, 
+                img_ymin, img_ylen):
+
+    x = round((pt.x - xmin) * img_xlen / xlen + img_xmin)
+    y = round((ymin-pt.y) * img_ylen / ylen + img_ylen - img_ymin)
+    
+    if (x == img_xlen):
+        x -= 1
+    if (y == img_ylen):
+        y -= 1
+
+    return img_arr[y][x]
 
 def isBlack(color):
     return (color[0] < 25 and color[1] < 25 and color[2] < 25)
@@ -174,28 +187,26 @@ def random_pt_in_triangle(triangle):
     return pt
 
 
-def most_common_color(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
-                    shp_xmin, shp_ymin, sample_limit):
-    
+def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
+
     # triangulate polygon
     triangles = shp.ops.triangulate(poly)
     
     # make list of partial sums of areas so we can pick a random triangle
     # weighted by area
     areas = np.asarray([0])
-    for triangle in enumerate(triangles):
-        np.append(areas, areas[-1] + triangle.area)
+    for triangle in triangles:
+        areas = np.append(areas, areas[-1] + triangle.area)
     
     # scale so last sum is 1
-    areas /= areas[-1]
-    
+    areas = areas / areas[-1]
+
     # initialize data to monitor throughout the sampling process
     # colors is a dictionary to store the number of pixels of each color
     colors = {}
     count = 0
     color_to_return = None
     stop_sampling = False
-    
     # sample as long as none of the stop criteria have been reached
     while not stop_sampling:
         
@@ -204,26 +215,39 @@ def most_common_color(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
         
         # select a random triangle (weighted by area) in the triangulation
         r = np.random.random_sample()
-        triangle = triangles[np.searchsorted(areas , r)]
+        triangle = triangles[np.searchsorted(areas , r)-1]
         
         # select a point uniformly at random from this triangle
         pt = random_pt_in_triangle(triangle)
         
-        # get color of pixel that corresponds to this point 
-        ######### TODO TODO ##########
-        ######### UPDATE pt_to_pixel #######
-        color = [0, 0, 0]
+        # gets size of img_arr to align it with poly
+        img_xlen = len(img_arr[0])
+        img_ylen = len(img_arr)
         
-        # add color to dictionary
-        if color not in colors:
-            colors[color] = 0
-        colors[color] += 1
+        # get color of pixel that corresponds to pt
+        color = pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, \
+                0, img_xlen, 0, img_ylen)
+        
+
+        # in case all are black, return black
+        colors[0] = 1
+        
+        # if not black, add color to dictionary
+        if not isBlack(color):    
+            
+            # for hashing
+            color_int = 256*256*color[0] + 256*color[1]+color[2]
+            
+            # update dictionary
+            if color_int not in colors:
+                colors[color_int] = 0
+            colors[color_int] += 1
         
         # decide if we are done sampling (every 10 samples)
-        if (count % 0 == 10):
+        if (count % 10 == 0):
             
             # find the most common color and its frequency
-            common = max(colors.iteritems(), key=operator.itemgetter(1))[0]
+            common = max(colors.items(), key=operator.itemgetter(1))[0]
             common_count = colors[common]
             
             # calculate z-score based on proportion test
@@ -232,37 +256,39 @@ def most_common_color(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
             z_score = (2 * common_count / count - 1) * np.sqrt(count)
             
             # stop sampling if we have convincing evidence or we hit our limit
-            if (z_score > 4 or count > sample_limit):
+            if (z_score > 4 or count >= sample_limit):
                 color_to_return = common
                 stop_sampling = True
     
     return color_to_return
         
-def most_common_color(img_getcolors):
-    ''' This function will take in an image and return the most common color
-    within the image
-    
-    Arguments:
-    img_getcolors: array created from the method Image.getcolors. It will
-    create a list of tuples. Each tuple has how many pixels have a given color
-    and the value of the color
-    '''
-    
-    # remove black pixels (probably just boundary, don't want to consider)
-    img_getcolors = [color for color in img_getcolors if not isBlack(color[1])]
-    
-    if len(img_getcolors) == 0:
-        img_getcolors = [(1, (0, 0, 0))]
-    
-    # Convert color counts into numpy array
-    arr = np.array([item[0] for item in img_getcolors])
-    
-    # Get index of max color count
-    max_ix = np.argmax(arr)
-
-    # return the color that is found the most
-    return img_getcolors[max_ix][1]
-
+# =============================================================================
+# def most_common_color(img_getcolors):
+#     ''' This function will take in an image and return the most common color
+#     within the image
+#     
+#     Arguments:
+#     img_getcolors: array created from the method Image.getcolors. It will
+#     create a list of tuples. Each tuple has how many pixels have a given color
+#     and the value of the color
+#     '''
+#     
+#     # remove black pixels (probably just boundary, don't want to consider)
+#     img_getcolors = [color for color in img_getcolors if not isBlack(color[1])]
+#     
+#     if len(img_getcolors) == 0:
+#         img_getcolors = [(1, (0, 0, 0))]
+#     
+#     # Convert color counts into numpy array
+#     arr = np.array([item[0] for item in img_getcolors])
+#     
+#     # Get index of max color count
+#     max_ix = np.argmax(arr)
+# 
+#     # return the color that is found the most
+#     return img_getcolors[max_ix][1]
+# 
+# =============================================================================
     
 def image_bound_box(img_arr, poly, img_xlen, img_ylen, shp_xlen, shp_ylen,
                     shp_xmin, shp_ymin):
@@ -500,8 +526,81 @@ def assign_blocks_to_regions(cb_df, reg_df):
     # return modified cb_df
     return cb_df
     
+# =============================================================================
+# def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
+#                                 img_path, colors=0):
+#     ''' Generates a precinct level shapefile from census block data and an 
+#     image cropped to a counties extents. Also updates the attribute table in
+#     the census block shapefile to have a precinct value.
+#     
+#     Arguments:
+#         local: name of the locality
+#         num_regions: number of precincts in the locality
+#         shape_path: full path to the census block shapefile
+#         out_folder: directory that precinct level shapefile will be saved in
+#         img_path: full path to image used to assign census blocks to precincts
+#         
+#     Output:
+#         Number of census blocks in the county
+#         '''        
+#     # Convert image to array, color reducing if specified
+#     img = Image.open(img_path)
+#     if colors > 0:
+#         img = reduce_colors(img, colors)
+#     img_arr = np.asarray(img)
+# 
+#     # Delete CPG file if it exists
+#     cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
+#     if os.path.exists(cpg_path):
+#         os.remove(cpg_path)
+#     
+#     # read in census block shapefile
+#     df = gpd.read_file(shape_path)
+# 
+#     # Create a new color and district index series in the dataframe
+#     add_cols = ['color', 'region', 'area']
+#     for i in add_cols:
+#         df[i] = pd.Series(dtype=object)
+#     
+#     # Calculate boundaries of the geodataframe using union of geometries
+#     bounds = list(shp.ops.cascaded_union(list(df['geometry'])).bounds)
+#     
+#     # Calculate global bounds for image and shape
+#     img_xlen = img.size[0]
+#     img_ylen = img.size[1]
+#     shp_xlen = bounds[2] - bounds[0]
+#     shp_ylen = bounds[3] - bounds[1]
+#     shp_xmin = bounds[0]
+#     shp_ymin = bounds[1]
+#     
+#     # set max color to a value > 256^3 so most_common_color doesn't return none
+#     maxc = 20000000
+#     count = 0
+#     # Itereate through each polygon and assign its most common color
+#     for i, _ in df.iterrows():
+#         
+#         # See timing
+#         if count % 100 == 0:
+#             print(count)
+#         count += 1
+#     
+#         # Get current polygon
+#         poly = df.at[i, 'geometry']
+#         
+#         # Calculate subimage
+#         sub_im = image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, 
+#                                    shp_ylen, shp_xmin, shp_ymin)
+#         
+#         # Set color for census block
+#         df.at[i, 'color'] = most_common_color(sub_im.getcolors(maxcolors=maxc))
+#     
+#     # Assign each polygon with a certain color a district index
+#     for i, color in enumerate(df['color'].unique()):
+#         df.loc[df['color'] == color, 'region'] = i
+#         
+# =============================================================================
 def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
-                                img_path, colors=0):
+                                img_path, colors=0, sample_limit=500):
     ''' Generates a precinct level shapefile from census block data and an 
     image cropped to a counties extents. Also updates the attribute table in
     the census block shapefile to have a precinct value.
@@ -536,20 +635,16 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
         df[i] = pd.Series(dtype=object)
     
     # Calculate boundaries of the geodataframe using union of geometries
-    bounds = list(shp.ops.cascaded_union(list(df['geometry'])).bounds)
+    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
     
-    # Calculate global bounds for image and shape
-    img_xlen = img.size[0]
-    img_ylen = img.size[1]
+    # Calculate global bounds for shape
     shp_xlen = bounds[2] - bounds[0]
     shp_ylen = bounds[3] - bounds[1]
     shp_xmin = bounds[0]
     shp_ymin = bounds[1]
     
-    # set max color to a value > 256^3 so most_common_color doesn't return none
-    maxc = 20000000
     count = 0
-    # Itereate through each polygon and assign its most common color
+    # Iterate through each polygon and assign its most common color
     for i, _ in df.iterrows():
         
         # See timing
@@ -560,13 +655,10 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
         # Get current polygon
         poly = df.at[i, 'geometry']
         
-        # Calculate subimage
-        sub_im = image_square_area(img_arr, poly, img_xlen, img_ylen, shp_xlen, 
-                                   shp_ylen, shp_xmin, shp_ymin)
-        
         # Set color for census block
-        df.at[i, 'color'] = most_common_color(sub_im.getcolors(maxcolors=maxc))
-    
+        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
+             shp_xlen, shp_ymin, shp_ylen, sample_limit)
+            
     # Assign each polygon with a certain color a district index
     for i, color in enumerate(df['color'].unique()):
         df.loc[df['color'] == color, 'region'] = i
