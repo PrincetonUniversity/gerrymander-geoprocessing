@@ -14,7 +14,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/southampton_redo.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/buchanan_redo.csv"
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -191,6 +191,11 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
 
     # triangulate polygon
     triangles = shp.ops.triangulate(poly)
+    
+    # in very rare cases, the polygon is so small that this shapely operation
+    # fails to triangulate it, so we return 0 (black)
+    if len(triangles) == 0:
+        return 0
     
     # make list of partial sums of areas so we can pick a random triangle
     # weighted by area
