@@ -869,8 +869,6 @@ if census_pop:
         # Add population to precinct
         df.at[PR, pop_string] += c_df.at[i, c_pop_string]
 
-
-
 ############################################
 ###### TOUCH-UPS ###########################
 ############################################

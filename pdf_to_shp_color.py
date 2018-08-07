@@ -14,7 +14,7 @@ import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/buchanan_redo.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Highland_Redo.csv"
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
