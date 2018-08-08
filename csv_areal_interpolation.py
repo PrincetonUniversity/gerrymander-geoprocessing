@@ -59,27 +59,16 @@ def main():
                 cpg_path_in = ''.join(in_path.split('.')[:-1]) + '.cpg'
                 if os.path.exists(cpg_path_in):
                     os.remove(cpg_path_in)
-                
-                print('BEFORE')
-                
+                    
                 # run majority areal interpolation
                 new_df_out = majority_areal_interpolation(out_path, in_path, \
                                                           adjust_cols)
                 
-                
-                print('HERE')
-                new_cols = new_df_out.columns
-                print(new_cols)
-                print('New Cols')
-                #print(new_cols)
-                for col in new_cols:
-                    new_df_out[col] = new_df_out[col].astype(str)
-                    print(col)
-                    print(new_df_out[col].dtype)
-                    
-                print('Change Column Types')
+                # Change to correct datatypes if numbers
+                for col in new_df_out.columns:
+                    new_df_out[col] = pd.to_numeric(new_df_out[col], \
+                                                      errors='ignore')
                 # save new out dataframe
-                
                 new_df_out.to_file(out_path)
                 
                 # print runtime
@@ -104,17 +93,17 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
         adjust_cols: list of tuples that determine which df_out columns are
         set equal to which df_in cols. [(df_out_col1, df_in_col1),
         (df_out_col2, df_in_col2),...]'''
-    print('IN HERE')
+
     # Read in input dataframe
     df_in = gpd.read_file(in_df_path)
     df_in.index = df_in.index.astype(int)
-    print('AFTER INDEX')
+
     # Read in output dataframe
-    print(out_df_path)
     df_out = gpd.read_file(out_df_path)
-    print('AFTER READ')
+
     # Create necessary output columns in the out_df
     df_out_cols = list(df_out.columns)
+
     for tup in adjust_cols:
         if tup[0] not in df_out_cols:
             df_out[tup[0]] = pd.Series(dtype=object)
@@ -123,6 +112,11 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
     # each geometry in df_in
     si = df_in.sindex
     
+    # get centroid for al elements in df_in to take care of no intersection
+    # cases
+    df_in['centroid'] = pd.Series(dtype=object) 
+    for j, _ in df_in.iterrows():
+        df_in.at[j, 'centroid'] = df_in.at[j, 'geometry'].centroid
     
     # iterate through every geometry in the out_df to match with in_df and set
     # target values
@@ -150,10 +144,24 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
                     if area > .5:
                         found_majority = True
                     frac_area[j] = area
-            #print(i)
-            #print(frac_area)
-            df_in_elem = max(frac_area.items(), key=operator.itemgetter(1))[0]
-    
+                    
+            # if there was intersection get max of frac area
+            if len(frac_area) > 0:
+                df_in_elem = max(frac_area.items(), \
+                                 key=operator.itemgetter(1))[0]
+            # No intersection so found nearest centroid
+            else:
+                # get centroid on the current geometry
+                c = df_out.at[i, 'geometry'].centroid
+                min_dist = -1
+                
+                # find the minimum distance index
+                for j, _ in df_in.iterrows():
+                    cur_dist = c.distance(df_in.at[j, 'centroid'])
+                    if min_dist == -1 or cur_dist < min_dist:
+                        df_in_elem = j
+                        min_dist = cur_dist
+                
         # Set corresponding df_out values to df_in values if the column exist
         # in in_df
         df_in_cols = df_in.columns
@@ -161,7 +169,6 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
             if tup[1] in df_in_cols:
                 df_out.at[i, tup[0]] = df_in.at[df_in_elem, tup[1]]
         
-    print('Finish')
     # Return output dataframe
     return df_out
 
