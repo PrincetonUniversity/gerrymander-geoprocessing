@@ -37,7 +37,7 @@ def compare_election_results_to_shapefiles(csv_path):
         for i, _ in in_df.iterrows():
             
             filename = direc_path + '/' + in_df.at[i, 'Filename']
-            num_precincts = in_df.at[i, 'Filename']
+            num_precincts = in_df.at[i, 'Num Precincts']
             locality = in_df.at[i, 'Locality']
             num_precincts_shp = get_num_attributes_from_shp(filename)
             
@@ -48,7 +48,7 @@ def compare_election_results_to_shapefiles(csv_path):
                 
     # CSV file could not be read in or exported
     except:
-        print('ERROR: Path for csv file does not exist OR close RESULTS csv')
+        print('ERROR')
         
 if __name__ == '__main__':
     main()
