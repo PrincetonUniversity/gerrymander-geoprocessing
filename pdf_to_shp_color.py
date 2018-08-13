@@ -8,13 +8,15 @@ import numpy as np
 import math
 import shapely as shp
 from shapely.geometry import Polygon
+from shapely.geometry import Point
 from collections import Counter
 import csv
 import pickle
 import operator
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Highland_Redo.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Color_Redo_Aug_10_Grayson.csv"
+
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer

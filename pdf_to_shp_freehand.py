@@ -296,13 +296,13 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     # Iterate until every census block has an ID
     while len(prec_to_set_list) > 0:
                 
+        # initialize list of precincts failed to set on this round
+        # (use this structure to avoid deleting from a list while
+        # iterating over it)
+        prec_to_set_list_new = []
+            
         # Loop through the current prec_to_set_list of unassigned census blocks
         for i in prec_to_set_list:
-            
-            # initialize list of precincts failed to set on this round
-            # (use this structure to avoid deleting from a list while
-            # iterating over it)
-            prec_to_set_list_new = []
             
             # Iterate through the neighbors of the current census block
             

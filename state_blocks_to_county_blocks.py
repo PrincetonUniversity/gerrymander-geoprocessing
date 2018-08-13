@@ -22,15 +22,14 @@ census_shape_folder = 'G:/Team Drives/princeton_gerrymandering_project/' \
 'mapping/2010 Census Block shapefiles/'
 
 # Select state
-state = 'VA'
+state = 'OH'
 
 # Define census name and path
-census_filename = '/tabblock2010_51_pophu.shp'
+census_filename = '/tabblock2010_39_pophu.shp'
 census_shape_path = census_shape_folder + state + census_filename
 
 # Define path to state folders
-state_shape_folder = 'G:/Team Drives/princeton_gerrymandering_project/' \
-'mapping/VA/Precinct Shapefile Collection/Virginia precincts'
+state_shape_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties"
 
 # Delete CPG file
 cpg_path = ''.join(census_shape_path.split('.')[:-1]) + '.cpg'
@@ -43,11 +42,14 @@ prj_path = ''.join(census_shape_path.split('.')[:-1]) + '.prj'
 if os.path.exists(prj_path):
     prj_exists = True
     
-    
+
 #%% THIS TAKES REALLY LONG. Should Be able to skip once pickle file is saved
 # Import census state file and save to pickle
-df = gpd.read_file(census_shape_path)
-df.to_pickle(census_shape_folder + state + '/census_df.pkl')
+no_pickle = 1
+    
+if no_pickle:
+    df = gpd.read_file(census_shape_path)
+    df.to_pickle(census_shape_folder + state + '/census_df.pkl')
 
 #%% This also only takes kinda long
 
@@ -70,16 +72,15 @@ in_df = in_df[in_df['state'] == state]
 # Set index into locality
 in_df = in_df.set_index('locality')
 
-
 # Get the names of all of the folders in a list in order
 folder_names = os.listdir(state_shape_folder)
 folder_names.sort()
 locality_names = list(in_df.index)
 
 # Create booleans to determine whether to add every shapefile or certain ones
-convert_every_locality = False
-convert_list_locality = True
-localities_to_convert =  ['Southampton County']
+convert_every_locality = True
+convert_list_locality = False
+localities_to_convert =  ['Lunenburg County', 'Buckingham County']
 
 # Get the number of folder name matches
 folder_count = 0
@@ -98,7 +99,7 @@ for name in localities_to_convert:
         list_count += 1
     else:
         list_missing.append(name)
-    
+
 # Perform for every county
 if convert_every_locality:
     num_to_convert = len(in_df)
@@ -129,6 +130,7 @@ if convert_every_locality:
                 shutil.copy(prj_path, out_path_prj)
     else:
         print('\nChange FIPS text file to match folders')
+        print(folder_missing)
 
 # Perform for list of localities
 elif convert_list_locality:
@@ -160,3 +162,4 @@ elif convert_list_locality:
                 shutil.copy(prj_path, out_path_prj)
     else:
         print('\nChange FIPS text file to match folders in convert list')
+        print(list_missing)
