@@ -117,15 +117,33 @@ def generate_precinct_shp_edited(local, num_regions, shape_path, out_folder):
     prec_region = list(df.region.unique())
     
     # Create dataframe of precincts
-    df_prec = pd.DataFrame(columns=['region', 'geometry'])
+    df_prec = pd.DataFrame(columns=['region', 'geometry', 'noncontiguous',\
+                                    'contains_another_precinct'])
     
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # union
     for i, elem in enumerate(prec_region):
         df_poly = df[df['region'] == elem]
         polys = list(df_poly['geometry'])
-        df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
+        geometry = shp.ops.cascaded_union(polys)
+        df_prec.at[i, 'geometry'] = geometry
         df_prec.at[i, 'region'] = elem
+        
+        # check if precinct is noncontiguous
+        if geometry.type == 'Polygon':
+            df_prec.at[i, 'noncontiguous'] = 0
+        else:
+            df_prec.at[i, 'noncontiguous'] = 1
+            
+        # check if precinct contains another precinct
+        poly_coords = list(geometry.exterior.coords)
+        poly = Polygon(poly_coords)
+        
+        # If poly is within the geometry then no neighbors are contained
+        if geometry.contains(poly):
+            df_prec.at[i, 'contains_another_precinct'] = 0
+        else:
+            df_prec.at[i, 'contains_another_precinct'] = 1
 
     ###########################################################################
     ###### Save Shapefiles ####################################################
