@@ -134,6 +134,7 @@ def generate_precinct_shp_edited(local, num_regions, shape_path, out_folder):
             df_prec.at[i, 'noncontiguous'] = 0
         else:
             df_prec.at[i, 'noncontiguous'] = 1
+            print('Noncontiguous: ' + str(i) + ' - ' + elem)
             
         # check if precinct contains another precinct
         poly_coords = list(geometry.exterior.coords)
@@ -144,6 +145,8 @@ def generate_precinct_shp_edited(local, num_regions, shape_path, out_folder):
             df_prec.at[i, 'contains_another_precinct'] = 0
         else:
             df_prec.at[i, 'contains_another_precinct'] = 1
+            print('Contains Another : ' + str(i) + ' - ' + elem)
+
 
     ###########################################################################
     ###### Save Shapefiles ####################################################
