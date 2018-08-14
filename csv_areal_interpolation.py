@@ -11,7 +11,7 @@ import time
 
 def main():
     # Get path to our CSV file
-    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Areal Interpolation/Areal Interpolate CSV/interpolate_Aug_10_Petersburg.csv"
+    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Areal Interpolation/Areal Interpolate CSV/interpolate_Aug_13_Lunenburg.csv"
     
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -163,7 +163,7 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
                         min_dist = cur_dist
                 
         # Set corresponding df_out values to df_in values if the column exist
-        # in in_df
+        # in in_df     
         df_in_cols = df_in.columns
         for tup in adjust_cols:
             if tup[1] in df_in_cols:

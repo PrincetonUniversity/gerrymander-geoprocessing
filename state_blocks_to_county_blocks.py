@@ -22,14 +22,14 @@ census_shape_folder = 'G:/Team Drives/princeton_gerrymandering_project/' \
 'mapping/2010 Census Block shapefiles/'
 
 # Select state
-state = 'OH'
+state = 'VA'
 
 # Define census name and path
-census_filename = '/tabblock2010_39_pophu.shp'
+census_filename = '/tabblock2010_51_pophu.shp'
 census_shape_path = census_shape_folder + state + census_filename
 
 # Define path to state folders
-state_shape_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties"
+state_shape_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts"
 
 # Delete CPG file
 cpg_path = ''.join(census_shape_path.split('.')[:-1]) + '.cpg'
@@ -45,7 +45,7 @@ if os.path.exists(prj_path):
 
 #%% THIS TAKES REALLY LONG. Should Be able to skip once pickle file is saved
 # Import census state file and save to pickle
-no_pickle = 1
+no_pickle = 0
     
 if no_pickle:
     df = gpd.read_file(census_shape_path)
@@ -78,9 +78,9 @@ folder_names.sort()
 locality_names = list(in_df.index)
 
 # Create booleans to determine whether to add every shapefile or certain ones
-convert_every_locality = True
-convert_list_locality = False
-localities_to_convert =  ['Lunenburg County', 'Buckingham County']
+convert_every_locality = False
+convert_list_locality = True
+localities_to_convert =  ['Lunenburg County']
 
 # Get the number of folder name matches
 folder_count = 0
