@@ -11,7 +11,7 @@ import csv
 import pickle
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Second Pass/Accomack_Test_Aug_14.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Second Pass/Accomack_Second_Test_Aug_14.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -22,10 +22,9 @@ def main():
             reader = csv.reader(f)
             data = [r for r in reader]
         direc_path = data[0][1]
-
         # Import table from CSV into pandas dataframe
         name_list = ['Locality', 'Census Path', 'Out Folder']
-        in_df = pd.read_csv(csv_path, header=1, names=name_list)
+        csv_df = pd.read_csv(csv_path, header=1, names=name_list)
 
         # Initialize out_df, which contains the results of the transfers and
         # contains what will be copied into the conversion page of the Google
@@ -34,7 +33,7 @@ def main():
         out_df = pd.DataFrame(columns=new_cols)
         
         # Iterate through each county we are creating a shapefile for
-        for i, _ in in_df.iterrows():
+        for i, _ in csv_df.iterrows():
             
             # Create shapefile out of precincts
             try:
@@ -42,30 +41,30 @@ def main():
                 start_time = time.time()
                 
                 # Set unique variables for the current county
-                local = in_df.at[i, 'Locality']
-                shape_path = in_df.at[i, 'Census Path']
-                out_folder = in_df.at[i, 'Out Folder']
+                local = csv_df.at[i, 'Locality']
+                shape_path = csv_df.at[i, 'Census Path']
+                out_folder = csv_df.at[i, 'Out Folder']
 
                 # Change census shapefile path and out folder if set to default
-                if shape_path:
+                if shape_path == 1:
                     census_filename = local + '_census_block.shp'
                     census_filename = census_filename.replace(' ', '_')
                     shape_path = direc_path + '/' + local + '/' + \
                                     census_filename
-                    
-                if out_folder:
+                
+                if out_folder == 1:
                     out_folder = direc_path + '/' + local
-                    
+
                 # set ouput shapefile name
                 out_name = local + '_precinct'
                 out_name = out_name.replace(' ', '_')
                 
                 # Generate precinct shapefile and add corresponding precinct
                 # index to the attribute field of the census block shapefile
-                print(local)
+                print('Before Result')
                 result = generate_precinct_shp_edited(local, shape_path, \
                                                       out_folder)
-                
+                print('After Result')
                 # Place Results in out_df
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'SUCCESS'
@@ -74,7 +73,7 @@ def main():
                 
             # Shapefile creation failed
             except:
-                print('ERROR:' + in_df.at[i, 'Locality'])
+                print('ERROR:' + csv_df.at[i, 'Locality'])
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'FAILURE'
         
@@ -117,7 +116,6 @@ def generate_precinct_shp_edited(local, shape_path, out_folder):
     # Create dataframe of precincts
     df_prec = pd.DataFrame(columns=['region', 'geometry', 'noncontiguous',\
                                     'contains_another_precinct'])
-    
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # union
     for i, elem in enumerate(prec_region):
@@ -130,21 +128,20 @@ def generate_precinct_shp_edited(local, shape_path, out_folder):
         # check if precinct is noncontiguous
         if geometry.type == 'Polygon':
             df_prec.at[i, 'noncontiguous'] = 0
+            
+            # check if precinct contains another precinct. Only make this
+            # check if the geometry type is a polygon
+            poly_coords = list(geometry.exterior.coords)
+            poly = Polygon(poly_coords)
+            # If poly is within the geometry then no neighbors are contained
+            if geometry.contains(poly):
+                df_prec.at[i, 'contains_another_precinct'] = 0
+            else:
+                df_prec.at[i, 'contains_another_precinct'] = 1
+                print('Contains Another : ' + str(elem))
         else:
             df_prec.at[i, 'noncontiguous'] = 1
-            print('Noncontiguous: ' + str(i) + ' - ' + elem)
-            
-        # check if precinct contains another precinct
-        poly_coords = list(geometry.exterior.coords)
-        poly = Polygon(poly_coords)
-        
-        # If poly is within the geometry then no neighbors are contained
-        if geometry.contains(poly):
-            df_prec.at[i, 'contains_another_precinct'] = 0
-        else:
-            df_prec.at[i, 'contains_another_precinct'] = 1
-            print('Contains Another : ' + str(i) + ' - ' + elem)
-
+            print('Noncontiguous: ' + str(elem))
 
     ###########################################################################
     ###### Save Shapefiles ####################################################
@@ -155,7 +152,9 @@ def generate_precinct_shp_edited(local, shape_path, out_folder):
     out_name.replace(' ', '_')
     
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
+    print('Before Neighbors')
     df_prec = df_prec.drop(columns=['neighbors'])
+    print('After Neighbors')
     df_prec['region'] = pd.to_numeric(df_prec['region'], \
            downcast='integer')
     df_prec.to_file(out_folder + '/' + out_name + '.shp')
