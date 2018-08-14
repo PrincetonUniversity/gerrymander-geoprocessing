@@ -11,7 +11,7 @@ import csv
 import pickle
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/grayson_test_with_function.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Second Pass/Accomack_Test_Aug_14.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -24,7 +24,7 @@ def main():
         direc_path = data[0][1]
 
         # Import table from CSV into pandas dataframe
-        name_list = ['Locality', 'Num Regions', 'Census Path', 'Out Folder']
+        name_list = ['Locality', 'Census Path', 'Out Folder']
         in_df = pd.read_csv(csv_path, header=1, names=name_list)
 
         # Initialize out_df, which contains the results of the transfers and
@@ -43,7 +43,6 @@ def main():
                 
                 # Set unique variables for the current county
                 local = in_df.at[i, 'Locality']
-                num_regions = in_df.at[i, 'Num Regions']
                 shape_path = in_df.at[i, 'Census Path']
                 out_folder = in_df.at[i, 'Out Folder']
 
@@ -64,8 +63,8 @@ def main():
                 # Generate precinct shapefile and add corresponding precinct
                 # index to the attribute field of the census block shapefile
                 print(local)
-                result = generate_precinct_shp_edited(local, num_regions, \
-                                                      shape_path, out_folder)
+                result = generate_precinct_shp_edited(local, shape_path, \
+                                                      out_folder)
                 
                 # Place Results in out_df
                 row = len(out_df)
@@ -87,14 +86,13 @@ def main():
     except:
         print('ERROR: Path for csv file does not exist OR close RESULTS csv')
     
-def generate_precinct_shp_edited(local, num_regions, shape_path, out_folder):
+def generate_precinct_shp_edited(local, shape_path, out_folder):
     ''' Generates a precinct level shapefile from census block data and an 
     an updated region attribute column. Also updates the attribute table in
     the census block shapefile to have a precinct value.
     
     Arguments:
         local: name of the locality
-        num_regions: number of precincts in the locality
         shape_path: full path to the census block shapefile
         out_folder: directory that precinct level shapefile will be saved in
         
