@@ -209,6 +209,10 @@ def merge_fully_contained(df, geo_id = 'geometry',
         called nbr_id (default name is 'neighbors')
     '''
     
+    # create neighbor list if it does not exist
+    if (nbr_id not in df.columns):
+        df = real_rook_contiguity(df)
+    
     # Create list of rows to drop at the end of the multiple contained check
     ids_to_drop = []
     
@@ -250,6 +254,11 @@ def merge_fully_contained(df, geo_id = 'geometry',
                 for j_nb in df.at[j, nbr_id]:
                     if j_nb not in possibly_contained and j_nb != i:
                         possibly_contained.append(j_nb)
+                        
+                # Add geometry of j to geometry of i
+                polys = [df.at[i, 'geometry'], 
+                         df.at[j, 'geometry']]
+                df.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
     
                 # Add capture columns from neighbor to precinct i
                 for col in cols_to_add:
@@ -445,68 +454,87 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
 def merge_to_right_number(df, num_regions):
     ''' Decreases the number of attributes in a dataframe to a fixed number by
     merging the smallest geometries into the neighbor with which it shares the
-    longest border.
+    longest border.  Also creates 'region' field.
     '''
-    # only do this if the current number of regions exceeds num_regions
-    if (len(df) > num_regions):
+    # reset index for df
+    df = df.reset_index(drop=True)
+    
+    # Get rook contiguity through a dictionary and calculate the shared_perims
+    df = real_rook_contiguity(df, struct_type='dict')
+    df = get_shared_perims(df)
+
+    # get list of precinct indices to keep
+    for i, _ in df.iterrows():
+        df.at[i, 'area'] = df.at[i, 'geometry'].area
+    arr = np.array(df['area'])
+    
+    precincts_to_merge = arr.argsort()[ : -num_regions]
+    
+    # Iterate through indexes of small "fake" precincts
+    for i in precincts_to_merge:
+
+        # update neighbors and shared_perims
+        cur_prec = df.at[i, 'neighbors']
+        ix = max(cur_prec, key=cur_prec.get)
+        merge_prec = df.at[ix, 'neighbors']
+
+        # merge dictionaries
+        merge_prec = Counter(merge_prec) + Counter(cur_prec)
+
+        # remove key to itself
+        merge_prec.pop(ix)
+
+        # set neighbor dictionary in dataframe
+        df.at[ix, 'neighbors'] = merge_prec
         
-        # reset index for df
-        df = df.reset_index(drop=True)
-    
-        # Get rook contiguity through a dictionary and calculate the shared_perims
-        df = real_rook_contiguity(df, struct_type='dict')
-        print('did rook')
-        df = get_shared_perims(df)
-        print('did shared perims')
-    
-        # get list of precinct indices to keep
-        df['area'] = 0
-        for i, _ in df.iterrows():
-            df.at[i, 'area'] = df.at[i, 'geometry'].area
-        arr = np.array(df['area'])
+        # merge geometry
+        df.at[ix, 'geometry'] = df.at[ix, 'geometry'].union\
+            (df.at[i, 'geometry'])
         
-        precincts_to_merge = arr.argsort()[ : -num_regions]
+        # delete neighbor reference to i and add reference for merge to key
+        for key in list(cur_prec):
+            df.at[key, 'neighbors'].pop(i)
+            
+            ##-----------------------------------------------------------------
+            # get perimeter length for key in merge and set in 
+            # neighbor list
+            key_dist = df.at[ix, 'neighbors'][key]
+            df.at[key, 'neighbors'][ix] = key_dist
         
-        # Iterate through indexes of precincts_to_merge
-        for i in precincts_to_merge:
-    
-            # update neighbors and shared_perims
-            cur_prec = df.at[i, 'neighbors']
-            ix = max(cur_prec, key=cur_prec.get)
-            merge_prec = df.at[ix, 'neighbors']
-    
-            # merge dictionaries (summing shared perims as needed)
-            merge_prec = Counter(merge_prec) + Counter(cur_prec)
-    
-            # remove key to itself
-            merge_prec.pop(ix)
-    
-            # set neighbor dictionary in dataframe
-            df.at[ix, 'neighbors'] = merge_prec
-            
-            # merge geometry
-            df.at[ix, 'geometry'] = df.at[ix, 'geometry'].union \
-                (df.at[i, 'geometry'])
-            
-            # delete neighbor reference to i and add reference for merge to key
-            for key in list(cur_prec):
-                df.at[key, 'neighbors'].pop(i)
-                
-                ##-----------------------------------------------------------------
-                # get perimeter length for key in merge and set in 
-                # neighbor list
-                key_dist = df.at[ix, 'neighbors'][key]
-                df.at[key, 'neighbors'][ix] = key_dist
-            
-        # delete all merged precincts
-        df = df.drop(precincts_to_merge)
-            
-        # reset index for df
-        df = df.reset_index(drop=True)
-            
-        # set region values
-        for i in range(len(df)):
-            df.at[i, 'region'] = i
+    # delete all merged precincts
+    df = df.drop(precincts_to_merge)
+        
+    # reset index for df
+    df = df.reset_index(drop=True)
+        
+    # set region values
+    for i in range(len(df)):
+        df.at[i, 'region'] = i
         
     return df
+
+def save_shapefile(df, file_str, cols_to_exclude=[]):
+    ''' Saves geodataframe to shapefile, deleting columns specified by user.
     
+    Arguments:
+        df: geodataframe to be written to file
+        file_str: string file path
+        cols_to_exclude: columns from df to be excluded from attribute table
+            (possibly because it cannot be written, like an array)
+    
+    Output: 1
+    '''
+    # make temporary dataframe so we can exclude columns
+    df1 = df
+    
+    # delete columns
+    df1 = df1.drop(columns=cols_to_exclude)
+    
+    # sanitize values in dataframe due to weird fiona bug
+    for col in df1.columns:
+        df1[col] = pd.to_numeric(df1[col], errors='ignore')
+        
+    # write shapefile
+    df1.to_file(file_str)
+    
+    return 1
