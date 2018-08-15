@@ -11,7 +11,7 @@ import csv
 import pickle
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Second Pass/Accomack_Second_Test_Aug_14.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Second Pass/Bethune_Hill_Counties_Fix_Errors_Aug_14.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -59,20 +59,21 @@ def main():
                 out_name = local + '_precinct'
                 out_name = out_name.replace(' ', '_')
                 
+                # Print Locality Name to see where errors are from
+                print('\n' + local)
+                
                 # Generate precinct shapefile and add corresponding precinct
                 # index to the attribute field of the census block shapefile
-                print('Before Result')
                 result = generate_precinct_shp_edited(local, shape_path, \
                                                       out_folder)
-                print('After Result')
-                # Place Results in out_df
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'SUCCESS'
                 out_df.at[row, 'Time Taken'] = time.time() - start_time
                 out_df.at[row, 'Num Census Blocks'] = result
                 
             # Shapefile creation failed
-            except:
+            except Exception as e:
+                print(e)
                 print('ERROR:' + csv_df.at[i, 'Locality'])
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'FAILURE'
@@ -115,34 +116,56 @@ def generate_precinct_shp_edited(local, shape_path, out_folder):
     
     # Create dataframe of precincts
     df_prec = pd.DataFrame(columns=['region', 'geometry', 'noncontiguous',\
-                                    'contains_another_precinct'])
+                                    'contains_another_precinct', 'locality'])
+
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # union
     for i, elem in enumerate(prec_region):
         df_poly = df[df['region'] == elem]
         polys = list(df_poly['geometry'])
+        
         geometry = shp.ops.cascaded_union(polys)
         df_prec.at[i, 'geometry'] = geometry
         df_prec.at[i, 'region'] = elem
         
         # check if precinct is noncontiguous
         if geometry.type == 'Polygon':
-            df_prec.at[i, 'noncontiguous'] = 0
             
             # check if precinct contains another precinct. Only make this
             # check if the geometry type is a polygon
             poly_coords = list(geometry.exterior.coords)
             poly = Polygon(poly_coords)
             # If poly is within the geometry then no neighbors are contained
-            if geometry.contains(poly):
+            if  geometry.contains(poly):
                 df_prec.at[i, 'contains_another_precinct'] = 0
             else:
                 df_prec.at[i, 'contains_another_precinct'] = 1
-                print('Contains Another : ' + str(elem))
+                print('Contains Another : ' + str(int(elem)))
+        
+        # Precinct is noncontiguous
         else:
             df_prec.at[i, 'noncontiguous'] = 1
-            print('Noncontiguous: ' + str(elem))
+            print('Noncontiguous: ' + str(int(elem)))
+            
+            # Check if any of the polygons in the MultiPolygon are donuts
+            for sub_polygon in geometry.geoms:
+                if sub_polygon.type == 'Polygon':
+                    
+                    # check if precinct contains another precinct.
+                    poly_coords = list(sub_polygon.exterior.coords)
+                    poly = Polygon(poly_coords)
+                    
+                    # If poly is within the geometry then no neighbors are 
+                    # contained
+                    if  geometry.contains(poly):
+                        df_prec.at[i, 'contains_another_precinct'] = 0
+                    else:
+                        df_prec.at[i, 'contains_another_precinct'] = 1
+                        print('Contains Another : ' + str(int(elem)))
 
+    # Initialize Locality Name
+    df_prec['locality'] = local
+    
     ###########################################################################
     ###### Save Shapefiles ####################################################
     ###########################################################################
@@ -152,9 +175,6 @@ def generate_precinct_shp_edited(local, shape_path, out_folder):
     out_name.replace(' ', '_')
     
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    print('Before Neighbors')
-    df_prec = df_prec.drop(columns=['neighbors'])
-    print('After Neighbors')
     df_prec['region'] = pd.to_numeric(df_prec['region'], \
            downcast='integer')
     df_prec.to_file(out_folder + '/' + out_name + '.shp')
