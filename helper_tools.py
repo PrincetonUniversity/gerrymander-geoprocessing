@@ -186,6 +186,9 @@ def assign_blocks_to_regions(cb_df, reg_df):
     # return modified cb_df
     return cb_df
 
+def split_non_contiguous():
+    return 0
+
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
     '''If any geometry is contained entirely within another geometry, this
@@ -250,7 +253,8 @@ def merge_fully_contained(df, geo_id = 'geometry',
     
                 # Add capture columns from neighbor to precinct i
                 for col in cols_to_add:
-                    df.at[i, col] = df.at[i, col] + df.at[j, col]
+                    if col in df.columns:
+                        df.at[i, col] = df.at[i, col] + df.at[j, col]
                             
                 # add neighbor reference from precinct i to delete if a neighbor
                 if j in df.at[i, nbr_id]:
@@ -439,60 +443,70 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
     return color_to_return
     
 def merge_to_right_number(df, num_regions):
-    # reset index for df
-    df = df.reset_index(drop=True)
-
-    # Get rook contiguity through a dictionary and calculate the shared_perims
-    df = real_rook_contiguity(df, 'dict')
-    df = get_shared_perims(df)
-
-    # get list of precinct indices to keep
-    for i, _ in df.iterrows():
-        df.at[i, 'area'] = df.at[i, 'geometry'].area
-    arr = np.array(df['area'])
-    
-    precincts_to_merge = arr.argsort()[ : -num_regions]
-    
-    # Iterate through indexes of small "fake" precincts
-    for i in precincts_to_merge:
-
-        # update neighbors and shared_perims
-        cur_prec = df.at[i, 'neighbors']
-        ix = max(cur_prec, key=cur_prec.get)
-        merge_prec = df.at[ix, 'neighbors']
-
-        # merge dictionaries
-        merge_prec = Counter(merge_prec) + Counter(cur_prec)
-
-        # remove key to itself
-        merge_prec.pop(ix)
-
-        # set neighbor dictionary in dataframe
-        df.at[ix, 'neighbors'] = merge_prec
+    ''' Decreases the number of attributes in a dataframe to a fixed number by
+    merging the smallest geometries into the neighbor with which it shares the
+    longest border.
+    '''
+    # only do this if the current number of regions exceeds num_regions
+    if (len(df) > num_regions):
         
-        # merge geometry
-        df.at[ix, 'geometry'] = df.at[ix, 'geometry'].union
-            (df.at[i, 'geometry'])
+        # reset index for df
+        df = df.reset_index(drop=True)
+    
+        # Get rook contiguity through a dictionary and calculate the shared_perims
+        df = real_rook_contiguity(df, struct_type='dict')
+        print('did rook')
+        df = get_shared_perims(df)
+        print('did shared perims')
+    
+        # get list of precinct indices to keep
+        df['area'] = 0
+        for i, _ in df.iterrows():
+            df.at[i, 'area'] = df.at[i, 'geometry'].area
+        arr = np.array(df['area'])
         
-        # delete neighbor reference to i and add reference for merge to key
-        for key in list(cur_prec):
-            df.at[key, 'neighbors'].pop(i)
+        precincts_to_merge = arr.argsort()[ : -num_regions]
+        
+        # Iterate through indexes of precincts_to_merge
+        for i in precincts_to_merge:
+    
+            # update neighbors and shared_perims
+            cur_prec = df.at[i, 'neighbors']
+            ix = max(cur_prec, key=cur_prec.get)
+            merge_prec = df.at[ix, 'neighbors']
+    
+            # merge dictionaries (summing shared perims as needed)
+            merge_prec = Counter(merge_prec) + Counter(cur_prec)
+    
+            # remove key to itself
+            merge_prec.pop(ix)
+    
+            # set neighbor dictionary in dataframe
+            df.at[ix, 'neighbors'] = merge_prec
             
-            ##-----------------------------------------------------------------
-            # get perimeter length for key in merge and set in 
-            # neighbor list
-            key_dist = df.at[ix, 'neighbors'][key]
-            df.at[key, 'neighbors'][ix] = key_dist
-        
-    # delete all merged precincts
-    df = df.drop(precincts_to_merge)
-        
-    # reset index for df
-    df = df.reset_index(drop=True)
-        
-    # set region values
-    for i in range(len(df)):
-        df.at[i, 'region'] = i
+            # merge geometry
+            df.at[ix, 'geometry'] = df.at[ix, 'geometry'].union \
+                (df.at[i, 'geometry'])
+            
+            # delete neighbor reference to i and add reference for merge to key
+            for key in list(cur_prec):
+                df.at[key, 'neighbors'].pop(i)
+                
+                ##-----------------------------------------------------------------
+                # get perimeter length for key in merge and set in 
+                # neighbor list
+                key_dist = df.at[ix, 'neighbors'][key]
+                df.at[key, 'neighbors'][ix] = key_dist
+            
+        # delete all merged precincts
+        df = df.drop(precincts_to_merge)
+            
+        # reset index for df
+        df = df.reset_index(drop=True)
+            
+        # set region values
+        for i in range(len(df)):
+            df.at[i, 'region'] = i
         
     return df
     

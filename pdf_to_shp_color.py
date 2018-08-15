@@ -13,9 +13,10 @@ from collections import Counter
 import csv
 import pickle
 import operator
+import helper_tools as tools
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Color_Redo_Aug_10_Grayson.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/TestTools.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -718,127 +719,15 @@ def generate_precinct_shapefile(local, num_regions, shape_path, out_folder,\
     ###########################################################################
     ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
     ###########################################################################
-    
     df_prec = real_rook_contiguity(df_prec)
-    
-    # Multiple Contained Precincts Check
-    # Create list of rows to drop at the end of the multiple contained check
-    ids_to_drop = []
-    
-    # Iterate over all precincts except the state boundary precinct
-    for i,_ in df_prec.iterrows():
-        
-        # Create polygon Poly for this precinct from its exterior coordinates. 
-        # This polygon is currently without an interior. The purpose of filling
-        # the interior is to allow for an intersection to see if a neighbor is
-        # fully contained
-        poly_coords = list(df_prec.at[i, 'geometry'].exterior.coords)
-        poly = Polygon(poly_coords)
-        
-        # Create list of contained neighbor id's to delete
-        nb_ix_del = []
-    
-        # Define a list that contains possibly contained precincts. If a 
-        # precinct is nested witin other contained precincts, we will need to 
-        # add it to this list
-        possibly_contained = df_prec.at[i, 'neighbors']
-        for j in possibly_contained:        
-            
-            # Check if the intersection of Poly (precint i's full polygon) and 
-            # the current neighbor is equal to the current neighbor. This 
-            # demonstrates that the current neighbor is fully contained within 
-            # precinct i
-            j_geom = df_prec.at[j, 'geometry']
-            
-            if j_geom == j_geom.intersection(poly):
-                # j is fully contained within i. To account for nested 
-                # precincts we append any neighbor of j that is not already in 
-                # possibly_contained not including i
-                for j_nb in df_prec.at[j, 'neighbors']:
-                    if j_nb not in possibly_contained and j_nb != i:
-                        possibly_contained.append(j_nb)
-    
-                # Add geometry of j to geometry of i
-                polys = [df_prec.at[i, 'geometry'], 
-                         df_prec.at[j, 'geometry']]
-                df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-                            
-                # add neighbor reference from precinct i to delete if a nb
-                if j in df_prec.at[i, 'neighbors']:
-                    nb_ix = df_prec.at[i, 'neighbors'].index(j)
-                    nb_ix_del.append(nb_ix)
-                
-                # add neighbor precinct to the ID's to be dropped
-                ids_to_drop.append(j)
-                
-        # Delete neighbor references from precinct i
-        if len(nb_ix_del) > 0:
-            # iterate through ixs in reverse to prevent errors through deletion
-            for nb_ix in reversed(nb_ix_del):
-                del(df_prec.at[i, 'neighbors'][nb_ix])
-    
-    # Drop contained precincts from the dataframe
-    df_prec = df_prec.drop(ids_to_drop)
+    df_prec = tools.merge_fully_contained(df_prec)
 
     ###########################################################################
     ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
     ###########################################################################
     
-    # reset index for df_prec
-    df_prec = df_prec.reset_index(drop=True)
-    
-    # Get rook contiguity through a dictionary and calculate the shared_perims
-    df_prec = real_rook_contiguity(df_prec, 'dict')
-    df_prec = get_shared_perims(df_prec)
+    df_prec = tools.merge_to_right_number(df_prec, num_regions)
 
-    # get list of precinct indices to keep
-    for i, _ in df_prec.iterrows():
-        df_prec.at[i, 'area'] = df_prec.at[i, 'geometry'].area
-    arr = np.array(df_prec['area'])
-    
-    precincts_to_merge = arr.argsort()[ : -num_regions]
-    
-    # Iterate through indexes of small "fake" precincts
-    for i in precincts_to_merge:
-
-        # update neighbors and shared_perims
-        cur_prec = df_prec.at[i, 'neighbors']
-        ix = max(cur_prec, key=cur_prec.get)
-        merge_prec = df_prec.at[ix, 'neighbors']
-
-        # merge dictionaries
-        merge_prec = Counter(merge_prec) + Counter(cur_prec)
-
-        # remove key to itself
-        merge_prec.pop(ix)
-
-        # set neighbor dictionary in dataframe
-        df_prec.at[ix, 'neighbors'] = merge_prec
-        
-        # merge geometry
-        df_prec.at[ix, 'geometry'] = df_prec.at[ix, 'geometry'].union\
-            (df_prec.at[i, 'geometry'])
-        
-        # delete neighbor reference to i and add reference for merge to key
-        for key in list(cur_prec):
-            df_prec.at[key, 'neighbors'].pop(i)
-            
-            ##-----------------------------------------------------------------
-            # get perimeter length for key in merge and set in 
-            # neighbor list
-            key_dist = df_prec.at[ix, 'neighbors'][key]
-            df_prec.at[key, 'neighbors'][ix] = key_dist
-        
-    # delete all merged precincts
-    df_prec = df_prec.drop(precincts_to_merge)
-        
-    # reset index for df_prec
-    df_prec = df_prec.reset_index(drop=True)
-        
-    # set region values
-    for i in range(len(df_prec)):
-        df_prec.at[i, 'region'] = i
-        
     ###########################################################################
     ###### Assign Census Blocks to Regions ####################################
     ###########################################################################
