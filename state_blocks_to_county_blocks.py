@@ -80,7 +80,7 @@ locality_names = list(in_df.index)
 # Create booleans to determine whether to add every shapefile or certain ones
 convert_every_locality = False
 convert_list_locality = True
-localities_to_convert =  ['Lunenburg County']
+localities_to_convert =  []
 
 # Get the number of folder name matches
 folder_count = 0
