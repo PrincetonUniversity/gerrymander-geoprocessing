@@ -5,7 +5,7 @@ Created on Thu Aug  9 15:03:45 2018
 @author: Jacob
 
 Helper methods related to image processing and geoprocessing to be used in 
-PDF conversion tools.
+PDF conversion. 
 
 """
 import pandas as pd
@@ -76,21 +76,12 @@ def cropped_bordered_image(img_arr):
     # calculate border color as top-left pixel
     color = img_arr[0][0]
     
-#    # if other corners are not the same color, throw an error
-#    if not (img_arr[0][xlen-1] == color and img_arr[ylen-1][xlen-1] == color \
-#        and img_arr[ylen-1][0] == color):
-#        raise ValueError('Image does not have same color in all corners')
+    # if other corners are not the same color, throw an error
+    if not ((img_arr[0][xlen-1]== color).all() and \
+            (img_arr[ylen-1][xlen-1] == color).all() and \
+            (img_arr[ylen-1][0] == color).all()):
+        raise ValueError('Image does not have same color in all corners')
         
-#    # find a pixel that is not the same color as the border, guessing the
-#    # middle pixel first and then sampling randomly
-#    pixel = [math.floor(ylen/2), math.floor(xlen/2)]
-#    count = 0
-#    while (img_arr[pixel[0]][pixel[1]] != color):
-#        count += 1
-#        if count == 1000:
-#            raise ValueError('Image is essentially all one color')
-#        pixel = [np.random.random_integers(0, ylen-1), \
-#                 np.random.random_integers(0, xlen-1)]
     
     # find inner border extents (left, top, right, bottom)
     top = 0
@@ -108,10 +99,6 @@ def cropped_bordered_image(img_arr):
         
     # crop and return array
     return img_arr[top:bottom+1, left:right+1]
-    
-    
-    
-    
 
 def real_rook_contiguity(df, geo_id = 'geometry',
                          nbr_id='neighbors',struct_type='list'):
@@ -277,8 +264,6 @@ def assign_blocks_to_regions(cb_df, reg_df):
     # return modified cb_df
     return cb_df
 
-def split_non_contiguous():
-    return 0
 
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
@@ -484,14 +469,15 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
     # initialize data to monitor throughout the sampling process
     # colors is a dictionary to store the number of pixels of each color
     colors = {}
-    count = 0
+    sampled = 0
+    used = 0
     color_to_return = None
     stop_sampling = False
     # sample as long as none of the stop criteria have been reached
     while not stop_sampling:
         
-        # update count
-        count += 1
+        # update sample count
+        sampled += 1
         
         # select a random triangle (weighted by area) in the triangulation
         r = np.random.random_sample()
@@ -515,6 +501,8 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
         # if not black, add color to dictionary
         if not isBlack(color):    
             
+            used += 1
+            
             # for hashing
             color_int = 256*256*color[0] + 256*color[1]+color[2]
             
@@ -524,7 +512,7 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
             colors[color_int] += 1
         
         # decide if we are done sampling (every 10 samples)
-        if (count % 10 == 0):
+        if (sampled % 10 == 0):
             
             # find the most common color and its frequency
             common = max(colors.items(), key=operator.itemgetter(1))[0]
@@ -533,15 +521,114 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
             # calculate z-score based on proportion test
             # trying to get evidence that this color is over 50% frequent
             # among all pixels
-            z_score = (2 * common_count / count - 1) * np.sqrt(count)
+            z_score = (2 * common_count / used - 1) * np.sqrt(used)
             
             # stop sampling if we have convincing evidence or we hit our limit
-            if (z_score > 4 or count >= sample_limit):
+            if (z_score > 4 or sampled >= sample_limit):
                 color_to_return = common
                 stop_sampling = True
     
     return color_to_return
+
+def split_noncontiguous(df, cols_to_copy=[]):
+    ''' Splits noncontiguous geometries in a dataframe and adds all polygons
+    as their own attribute.
     
+    Arguments:
+        df: geodataframe
+        cols_to_copy: columns from non-contiguous region to copy over to 
+            all parts that were split off
+    
+    Output: df with no noncontiguous geometries
+    '''
+    
+     # Initialize indexes to drop
+    drop_ix = []
+    
+    # Iterate through every precinct
+    for i, _ in df.iterrows():
+        # Check if it precinct is a MultiPolygon
+        if df.at[i, 'geometry'].type == 'MultiPolygon':
+            # Add index as the index of a row to be dropped
+            drop_ix.append(i)
+            
+            # get shape and area of current precinct
+            precinct = df.at[i, 'geometry']
+    
+            # Iterate through every contiguous region in the precinct
+            for region in precinct.geoms:
+                # Set geometry of new shape, copy necessary fields
+                d ={}
+                d['geometry'] = region
+                for col in cols_to_copy:
+                    d[col] = df.at[i, col]
+                df = df.append(d, ignore_index=True)
+                
+    # Remove original noncontiguous precincts
+    df = df.drop(drop_ix)
+    
+    return df
+
+def shp_from_sampling(local, num_regions, shape_path, out_folder,\
+                                img_path, colors=0, sample_limit=500):
+    ''' Generates a precinct level shapefile from census block data and an 
+    image cropped to a counties extents. Also updates the attribute table in
+    the census block shapefile to have a precinct value.
+    
+    Arguments:
+        local: name of the locality
+        num_regions: number of precincts in the locality
+        shape_path: full path to the census block shapefile
+        out_folder: directory that precinct level shapefile will be saved in
+        img_path: full path to image used to assign census blocks to precincts
+        
+    Output:
+        Number of census blocks in the county
+        '''        
+    # Convert image to array, color reducing if specified
+    img = Image.open(img_path)
+    if colors > 0:
+        img = reduce_colors(img, colors)
+    img_arr = np.asarray(img)
+
+    # Delete CPG file if it exists
+    cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
+    if os.path.exists(cpg_path):
+        os.remove(cpg_path)
+    
+    # read in census block shapefile
+    df = gpd.read_file(shape_path)
+
+    # Create a new color and district index series in the dataframe
+    add_cols = ['color', 'region', 'area']
+    for i in add_cols:
+        df[i] = pd.Series(dtype=object)
+    
+    # Calculate boundaries of the geodataframe using union of geometries
+    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
+    
+    # Calculate global bounds for shape
+    shp_xlen = bounds[2] - bounds[0]
+    shp_ylen = bounds[3] - bounds[1]
+    shp_xmin = bounds[0]
+    shp_ymin = bounds[1]
+    
+    # Iterate through each polygon and assign its most common color
+    for i, _ in df.iterrows():
+        
+        # Get current polygon
+        poly = df.at[i, 'geometry']
+        
+        # Set color for census block
+        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
+             shp_xlen, shp_ymin, shp_ylen, sample_limit)
+            
+    # Assign each polygon with a certain color a district index
+    for i, color in enumerate(df['color'].unique()):
+        df.loc[df['color'] == color, 'region'] = i
+        
+    return len(df)
+
 def merge_to_right_number(df, num_regions):
     ''' Decreases the number of attributes in a dataframe to a fixed number by
     merging the smallest geometries into the neighbor with which it shares the
@@ -603,6 +690,104 @@ def merge_to_right_number(df, num_regions):
         df.at[i, 'region'] = i
         
     return df
+
+def shp_from_sampling(local, num_regions, shape_path, out_folder,\
+                                img_path, colors=0, sample_limit=500):
+    ''' Generates a precinct level shapefile from census block data and an 
+    image cropped to a counties extents. Also updates the attribute table in
+    the census block shapefile to have a precinct value.
+    
+    Arguments:
+        local: name of the locality
+        num_regions: number of precincts in the locality
+        shape_path: full path to the census block shapefile
+        out_folder: directory that precinct level shapefile will be saved in
+        img_path: full path to image used to assign census blocks to precincts
+        
+    Output:
+        Number of census blocks in the county
+        '''        
+    # Convert image to array, color reducing if specified
+    img = Image.open(img_path)
+    if colors > 0:
+        img = reduce_colors(img, colors)
+    img_arr = np.asarray(img)
+
+    # Delete CPG file if it exists
+    cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
+    if os.path.exists(cpg_path):
+        os.remove(cpg_path)
+    
+    # read in census block shapefile
+    df = gpd.read_file(shape_path)
+
+    # Create a new color and district index series in the dataframe
+    add_cols = ['color', 'region', 'area']
+    for i in add_cols:
+        df[i] = pd.Series(dtype=object)
+    
+    # Calculate boundaries of the geodataframe using union of geometries
+    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
+    
+    # Calculate global bounds for shape
+    shp_xlen = bounds[2] - bounds[0]
+    shp_ylen = bounds[3] - bounds[1]
+    shp_xmin = bounds[0]
+    shp_ymin = bounds[1]
+    
+    # Iterate through each polygon and assign its most common color
+    for i, _ in df.iterrows():
+        
+        # Get current polygon
+        poly = df.at[i, 'geometry']
+        
+        # Set color for census block
+        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
+             shp_xlen, shp_ymin, shp_ylen, sample_limit)
+            
+    # Assign each polygon with a certain color a district index
+    for i, color in enumerate(df['color'].unique()):
+        df.loc[df['color'] == color, 'region'] = i
+        
+    ## CREATE PRECINCTS ##
+    
+    # Get unique values in the df ID column
+    prec_id = list(df.region.unique())
+    
+    df_prec = pd.DataFrame(columns=['region', 'geometry'])
+    
+    # Iterate through all of the precinct IDs and set geometry of df_prec with
+    # union
+    for i in range(len(prec_id)):
+        df_poly = df[df['region'] == prec_id[i]]
+        polys = list(df_poly['geometry'])
+        df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
+        df_prec.at[i, 'region'] = prec_id[i]
+        
+    # Remove noncontiguous precincts
+    df_prec = split_noncontiguous(df_prec)
+
+    # Merge precincts fully contained in other precincts
+    df_prec = merge_fully_contained(df_prec)
+
+    # Merge precincts until we have the right number
+    df_prec = merge_to_right_number(df_prec, num_regions)
+
+    # Assign census blocks to regions
+    df = assign_blocks_to_regions(df, df_prec)
+    
+    # Save census block shapefile with updated attribute table
+    save_shapefile(df, shape_path, cols_to_exclude=['color'])
+    
+    # Save precinct shapefile
+    out_name = local + '_precincts'
+    out_name.replace(' ', '_')
+    prec_shape_path = out_folder + '/' + out_name + '.shp'
+    
+    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
+    save_shapefile(df_prec, prec_shape_path, ['neighbors'])
+        
+    return len(df)
 
 def save_shapefile(df, file_str, cols_to_exclude=[]):
     ''' Saves geodataframe to shapefile, deleting columns specified by user.
