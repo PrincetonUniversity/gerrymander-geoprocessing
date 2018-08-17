@@ -160,12 +160,14 @@ def real_rook_contiguity(df, geo_id = 'geometry',
     return df
 
 def get_shared_perims(df):
-    ''' Return a dataframe that assigns the length of shared perimeters with
-    neighbors in a dataframes neighbor list.
+    ''' Return a dataframe with a new field, neighbors, containing a dictionary
+    where the keys are indices of rook-contiguous neighbors and the values are
+    shared perimeters.
     
     Arguments:
         df:'''
-        
+    df = real_rook_contiguity(df, struct_type='dict')
+    
     # iterate over all precincts to set shared_perims
     for i,_ in df.iterrows():
         
@@ -629,27 +631,52 @@ def shp_from_sampling(local, num_regions, shape_path, out_folder,\
         
     return len(df)
 
-def merge_to_right_number(df, num_regions):
-    ''' Decreases the number of attributes in a dataframe to a fixed number by
-    merging the smallest geometries into the neighbor with which it shares the
-    longest border.  Also creates 'region' field.
+def fraction_shared_perim(nbrs, indices, perim):
+    ''' Helper function for merge_geometries to calculate the fraction
+    of a shape's perimeter that is shared with shapes at certain indices.
+    Relies on having a dictionary of neighbors and shared perimeters.
+    
+    Arguments: 
+        nbrs: dictionary with keys as neighbor indices, values as shared perims
+        indices: indices for which we care about the fraction shared
+        perim: perimeter of shape
     '''
-    # reset index for df
-    df = df.reset_index(drop=True)
+    # calcluate total perimeter shared with shapes at indices
+    shared_perim = sum([nbrs[key] for key in nbrs if key in indices])
     
-    # Get rook contiguity through a dictionary and calculate the shared_perims
-    df = real_rook_contiguity(df, struct_type='dict')
-    df = get_shared_perims(df)
+    return shared_perim/perim
 
-    # get list of precinct indices to keep
-    for i, _ in df.iterrows():
-        df.at[i, 'area'] = df.at[i, 'geometry'].area
-    arr = np.array(df['area'])
+def merge_geometries(df, indices_to_merge, cols_to_add=[]):
+    '''
+    Merges the geometries for given indices in a geodataframe into another
+    geometry in the dataframe. Merges geometries by longest shared perimeter.
     
-    precincts_to_merge = arr.argsort()[ : -num_regions]
+    Arguments:
+        df: geodataframe
+        indices_to_merge: indices of geometries that we want to merge into 
+            some other geometry
+        cols_to_add: columns in df to add as we merge (e.g. population)
+    '''
+    # Get neighbors dicts with shared_perims
+    df = get_shared_perims(df)
     
-    # Iterate through indexes of small "fake" precincts
-    for i in precincts_to_merge:
+    # Delete duplicates from indices_to_merge, which should never exist in
+    # the first place but it would ruin the next part so let's be safe
+    indices_to_merge = list(set(indices_to_merge))
+    
+    # temp list because we will be deleting
+    original_indices_to_merge = indices_to_merge[:]
+    
+    # Merge while there are still geometries to merge
+    while len(indices_to_merge) > 0:
+        
+        # find the index of the geometry to merge next, which is the geometry
+        # with smallest fraction of its perimeter assigned to indices_to_merge
+        fractions = [fraction_shared_perim(df.at[id, 'neighbors'],\
+                                           indices_to_merge,\
+                                           df.at[id, 'geometry'].length)\
+                    for id in indices_to_merge]
+        i = indices_to_merge[fractions.index(min(fractions))]
 
         # update neighbors and shared_perims
         cur_prec = df.at[i, 'neighbors']
@@ -678,10 +705,40 @@ def merge_to_right_number(df, num_regions):
             # neighbor list
             key_dist = df.at[ix, 'neighbors'][key]
             df.at[key, 'neighbors'][ix] = key_dist
+            
+        # remove i from indices to merge
+        indices_to_merge.remove(i)
         
     # delete all merged precincts
-    df = df.drop(precincts_to_merge)
-        
+    df = df.drop(original_indices_to_merge)
+    
+    return df
+    
+def merge_to_right_number(df, num_regions):
+    ''' Decreases the number of attributes in a dataframe to a fixed number by
+    merging the smallest geometries into the neighbor with which it shares the
+    longest border.  Also creates 'region' field.
+    '''
+    print(len(df))
+    # reset index for df
+    df = df.reset_index(drop=True)
+    
+    # Get neighbors dicts with shared_perims
+    df = get_shared_perims(df)
+
+    # get list of precinct indices to merge (smallest areas)
+    for i, _ in df.iterrows():
+        df.at[i, 'area'] = df.at[i, 'geometry'].area
+    arr = np.array(df['area'])
+    
+    precincts_to_merge = arr.argsort()[ : -num_regions]
+    print(len(precincts_to_merge))
+    
+    # merge precincts_to_merge
+    df = merge_geometries(df, precincts_to_merge)
+    
+    print(len(df))
+    
     # reset index for df
     df = df.reset_index(drop=True)
         
