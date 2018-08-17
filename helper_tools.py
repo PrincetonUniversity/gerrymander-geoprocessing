@@ -719,7 +719,6 @@ def merge_to_right_number(df, num_regions):
     merging the smallest geometries into the neighbor with which it shares the
     longest border.  Also creates 'region' field.
     '''
-    print(len(df))
     # reset index for df
     df = df.reset_index(drop=True)
     
@@ -732,12 +731,9 @@ def merge_to_right_number(df, num_regions):
     arr = np.array(df['area'])
     
     precincts_to_merge = arr.argsort()[ : -num_regions]
-    print(len(precincts_to_merge))
     
     # merge precincts_to_merge
     df = merge_geometries(df, precincts_to_merge)
-    
-    print(len(df))
     
     # reset index for df
     df = df.reset_index(drop=True)
