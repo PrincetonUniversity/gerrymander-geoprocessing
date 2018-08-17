@@ -10,9 +10,11 @@ from collections import Counter
 import csv
 import pickle
 import operator
+import helper_tools as tools
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/CSV/Freehand_Conversion_Digitization_Russell.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/TestTools2.csv"
+
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
@@ -88,92 +90,6 @@ def main():
     except:
         print('ERROR: Path for csv file does not exist OR close RESULTS csv')
 
-def real_rook_contiguity(df, struct_type='list'):
-    ''' Generates neighbor list using rook contiguity for a geodataframe.
-    
-    Arguments:
-        df: geodataframe to apply rook contiguity to
-        struct_type: determines whether neighbors are returned as a list or
-        as a dict'''
-    
-    # Obtain queen continuity for each shape in the dataframe. We will remove 
-    # all point contiguity. Shapely rook contiguity sometimes assumes lines
-    # with small lines are points
-    w = ps.weights.Queen.from_dataframe(df, geom_col='geometry')
-    
-    # Initialize neighbors column
-    df['neighbors'] = pd.Series(dtype=object)   
-    
-    # Initialize neighbors for each precinct
-    for i,_ in df.iterrows():
-        struct = w.neighbors[i]
-        
-        # Iterate through every precinct to remove all neighbors that only 
-        # share a single point. Rook contiguity would asssume some lines are 
-        # points, so we have to use queen and then remove points
-        
-        # Obtain degree (# neighbors) of precinct
-        nb_len = len(struct)
-        
-        # Iterate through neighbor indexes in reverse order to prevent errors 
-        # due
-        # to the deletion of elements
-        for j in range(nb_len - 1, -1, -1):
-            # get the jth neighbor
-            j_nb = struct[j]
-            
-            # get the geometry for both precincts
-            i_geom = df.at[i, 'geometry']
-            j_nb_geom = df.at[j_nb, 'geometry']
-            
-            # If their intersection is a point, delete j_nb from i's neighbor 
-            # list do not delete in both directions. That will be taken care of
-            # eventually when i = j_nb later in the loop or before this occurs
-            geom_type = i_geom.intersection(j_nb_geom).type
-            if geom_type == 'Point' or geom_type == 'MultiPoint':
-                del struct[j]
-        
-        # Assign to dataframe according to the structure passed in
-        if struct_type == 'list':
-            df.at[i, 'neighbors'] = struct
-        elif struct_type == 'dict':
-            df.at[i, 'neighbors'] = dict.fromkeys(struct)
-    return df
-
-def get_shared_perims(df):
-    ''' Return a dataframe that assigns the length of shared perimeters with
-    neighbors in a dataframes neighbor list.
-    
-    Arguments:
-        df:'''
-        
-    # iterate over all precincts to set shared_perims
-    for i,_ in df.iterrows():
-        
-        # iterate over the neighbors of precinct i
-        for key in df.at[i, 'neighbors']:
-        
-            # obtain the boundary between current precinct and its j neighbor
-            shape = df.at[i, 'geometry'].intersection(df.at[key, 'geometry'])
-            
-            # get shared_perim length (casework)
-            if shape.type == 'GeometryCollection' or \
-                    shape.type == 'MultiLineString':
-                length = 0
-                for line in shape.geoms:
-                    if line.type == 'LineString':
-                        length += line.length
-            elif shape.type == 'LineString':
-                length = shape.length
-            else:
-                print(shape.type)
-                print(i)
-                print(key)
-                print ('Unexpected boundary')
-                length = -1
-                
-            df.at[i, 'neighbors'][key] = length
-    return df
 
 def assign_blocks_to_regions(cb_df, reg_df):
     ''' Adds a 'region' column to dataframe of census blocks using areal
@@ -274,7 +190,7 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     df['region'] = pd.Series(dtype=object)
     
     # Apply rook contiguity
-    df = real_rook_contiguity(df)
+    df = tools.real_rook_contiguity(df)
     
 
     ###########################################################################
@@ -341,169 +257,14 @@ def generate_precinct_shp_free(local, shape_path, out_folder):
     out_name = local + '_precincts'
     out_name.replace(' ', '_')
     
-    ###########################################################################
-    ###### SPLIT NON-CONTIGUOUS PRECINCTS (archipelagos)#######################
-    ###########################################################################
-    
-    # Initialize indexes to drop
-    drop_ix = []
-    
-    # Iterate through every precinct
-    for i, _ in df_prec.iterrows():
-        # Check if it precinct is a MultiPolygon
-        if df_prec.at[i, 'geometry'].type == 'MultiPolygon':
-            # Add index as the index of a row to be dropped
-            drop_ix.append(i)
-            
-            # get shape and area of current precinct
-            precinct = df_prec.at[i, 'geometry']
-    
-            # Iterate through every contiguous region in the precinct
-            for region in precinct.geoms:
-                # Set geometry and id of new_shape
-                d = {}
-                d['geometry'] = region
-                df_prec = df_prec.append(d, ignore_index=True)
-                
-    # Remove original noncontiguous precincts
-    df_prec = df_prec.drop(drop_ix)
-    
-    ###########################################################################
-    ###### MERGE PRECINCTS FULLY CONTAINED IN OTHER PRECINCTS #################
-    ###########################################################################
-    df_prec = real_rook_contiguity(df_prec)
+    # Remove noncontiguous precincts
+    df_prec = tools.split_noncontiguous(df_prec)
 
-    # Multiple Contained Precincts Check
-    # Create list of rows to drop at the end of the multiple contained check
-    ids_to_drop = []
-    
-    # Iterate over all precincts
-    for i,_ in df_prec.iterrows():
-        
-        # Create polygon Poly for this precinct from its exterior coordinates. 
-        # This polygon is currently without an interior. The purpose of filling
-        # the interior is to allow for an intersection to see if a neighbor is
-        # fully contained
-        
-        geometry = df_prec.at[i, 'geometry']
-        
-        if geometry.type == 'Polygon':
-            poly_coords = list(geometry.exterior.coords)
-            poly = Polygon(poly_coords)
-        else:
-            print('Geometry is not a polygon during contained precincts check')
+    # Merge precincts fully contained in other precincts
+    df_prec = tools.merge_fully_contained(df_prec)
 
-        # Create list of contained neighbor id's to delete
-        nb_ix_del = []
-    
-        # Define a list that contains possibly contained precincts. If a 
-        # precinct is nested witin other contained precincts, we will need to 
-        # add it to this list
-        possibly_contained = df_prec.at[i, 'neighbors']
-        for j in possibly_contained:        
-            
-            # Check if the intersection of Poly (precint i's full polygon) and 
-            # the current neighbor is equal to the current neighbor. This 
-            # demonstrates that the current neighbor is fully contained within 
-            # precinct i
-            j_geom = df_prec.at[j, 'geometry']
-            
-            if j_geom == j_geom.intersection(poly):
-                # j is fully contained within i. To account for nested 
-                # precincts we append any neighbor of j that is not already in 
-                # possibly_contained not including i
-                for j_nb in df_prec.at[j, 'neighbors']:
-                    if j_nb not in possibly_contained and j_nb != i:
-                        possibly_contained.append(j_nb)
-    
-                # Add geometry of j to geometry of i
-                polys = [df_prec.at[i, 'geometry'], 
-                         df_prec.at[j, 'geometry']]
-                df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-                            
-                # add neighbor reference from precinct i to delete if a nb
-                if j in df_prec.at[i, 'neighbors']:
-                    nb_ix = df_prec.at[i, 'neighbors'].index(j)
-                    nb_ix_del.append(nb_ix)
-                
-                # add neighbor precinct to the ID's to be dropped
-                ids_to_drop.append(j)
-                
-        # Delete neighbor references from precinct i
-        if len(nb_ix_del) > 0:
-            # iterate through ixs in reverse to prevent errors through deletion
-            for nb_ix in reversed(nb_ix_del):
-                del(df_prec.at[i, 'neighbors'][nb_ix])
-    
-    # Drop contained precincts from the dataframe
-    df_prec = df_prec.drop(ids_to_drop)
-    
-
-    ###########################################################################
-    ###### MERGE PRECINCTS UNTIL WE HAVE THE RIGHT NUMBER #####################
-    ###########################################################################
-
-    # reset index for df_prec
-    df_prec = df_prec.reset_index(drop=True)
-    
-    # Get rook contiguity through a dictionary and calculate the shared_perims
-    df_prec = real_rook_contiguity(df_prec, 'dict')
-    
-    df_prec.to_pickle(out_folder + '/before_shared_perims.pkl')
-    df_prec = get_shared_perims(df_prec)
-    
-    # get list of precinct indices to keep
-    for i, _ in df_prec.iterrows():
-        df_prec.at[i, 'area'] = df_prec.at[i, 'geometry'].area
-    arr = np.array(df_prec['area'])
-    precincts_to_merge = arr.argsort()[ : -num_regions]
-
-    # Iterate through indexes of small "fake" precincts
-    for i in precincts_to_merge:
-        
-        # update neighbors and shared_perims
-        cur_prec = df_prec.at[i, 'neighbors']
-        ix = max(cur_prec, key=cur_prec.get)
-        merge_prec = df_prec.at[ix, 'neighbors']
-        
-        # merge dictionaries
-        merge_prec = Counter(merge_prec) + Counter(cur_prec)
-        
-        # remove key to itself
-        merge_prec.pop(ix)
-        
-        # set neighbor dictionary in dataframe
-        df_prec.at[ix, 'neighbors'] = merge_prec
-        
-        # merge geometry
-        df_prec.at[ix, 'geometry'] = df_prec.at[ix, 'geometry'].union\
-            (df_prec.at[i, 'geometry'])
-            
-        # delete neighbor reference to i and add reference for merge to key
-        for key in cur_prec:
-            df_prec.at[key, 'neighbors'].pop(i)
-            
-            ##-----------------------------------------------------------------
-            # get perimeter length for key in merge and set in 
-            # neighbor list
-            key_dist = df_prec.at[ix, 'neighbors'][key]
-            df_prec.at[key, 'neighbors'][ix] = key_dist
-            
-    # delete current precinct
-    df_prec = df_prec.drop(precincts_to_merge)
-        
-    # Set precinct values to be between 0 and num_regions - 1
-    df_prec = df_prec.reset_index(drop=True)
-
-    # set region values
-    for i in range(len(df_prec)):
-        df_prec.at[i, 'region'] = i
-
-    ###########################################################################
-    ###### Assign Census Blocks to Regions ####################################
-    ###########################################################################
-    
-    df = assign_blocks_to_regions(df, df_prec)
+    # Assign census blocks to regions
+    df = tools.assign_blocks_to_regions(df, df_prec)
         
     ###########################################################################
     ###### Save Shapefiles ####################################################
