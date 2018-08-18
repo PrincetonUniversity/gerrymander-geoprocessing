@@ -8,71 +8,94 @@ import os
 import csv
 import shutil
 import time
+from titlecase import titlecase
 
 def main():
     # Get path to our CSV file
-    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Areal Interpolation/Areal Interpolate CSV/interpolate_Aug_13_Lunenburg.csv"
+    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/BH_Interpolate_Aug18.csv"
     
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
     try:
-        
+        # Import Google Drive path
+        with open(csv_path) as f:
+            reader = csv.reader(f)
+            data = [r for r in reader]
+        direc_path = data[0][1]
+
         # Import table from CSV into pandas dataframe
-        csv_df_names = ['locality', 'out_df path', 'out_df cols', \
-                        'in_df path', 'in_df cols']
-        csv_df = pd.read_csv(csv_path, header=0, names=csv_df_names)
+        csv_df_names = ['locality', 'to_df path', 'to_df cols', 'format', \
+                        'from_df path', 'from_df cols']
+        csv_df = pd.read_csv(csv_path, header=1, names=csv_df_names)
         
         # Adjust strings delimited by commas into lists
-        list_col = ['out_df cols', 'in_df cols']
+        list_col = ['to_df cols', 'from_df cols', 'format']
         for col in list_col:
             csv_df[col] = csv_df[col].str.split(',')
-            
+
         # Iterate through all of the interpolations
         for i, _ in csv_df.iterrows():
             
-            print(csv_df.at[i, 'locality'])
+            local = csv_df.at[i, 'locality']
+            print('\n' + local)
             try: 
-                # Check runtime
-                start = time.time()
                 
                 # Set adjust cols
                 adjust_cols = []
-                in_cols = csv_df.at[i, 'in_df cols']
-                out_cols = csv_df.at[i, 'out_df cols']
+                from_cols = csv_df.at[i, 'from_df cols']
+                to_cols = csv_df.at[i, 'to_df cols']
+                format_cols =  csv_df.at[i, 'format']
                 
-                if len(in_cols) != len(out_cols):
-                    raise Exception('# of in and out cols are unequal')
+                if len(from_cols) != len(to_cols):
+                    raise Exception('# of from and to cols are unequal')
             
-                for ix, elem in enumerate(out_cols):
-                    adjust_cols.append((elem, in_cols[ix]))
+                for ix, elem in enumerate(to_cols):
+                    adjust_cols.append((elem, from_cols[ix], format_cols[ix]))
                     
-                # set paths
-                out_path = csv_df.at[i, 'out_df path']
-                in_path = csv_df.at[i, 'in_df path']
+                # set to path
+                to_path = csv_df.at[i, 'to_df path']
                 
+                if to_path == 'census_block':
+                    filename = local + '_census_block.shp'
+                    filename = filename.replace(' ', '_')
+                    to_path = direc_path + '/' + local + '/' + filename
+                                    
+                if to_path == 'precinct':
+                    filename = local + '_precincts.shp'
+                    to_path = direc_path + '/' + local + '/' + filename
+                
+                # set from path
+                from_path = csv_df.at[i, 'from_df path']
+                
+                if from_path == 'census_block':
+                    filename = local + '_census_block.shp'
+                    filename = filename.replace(' ', '_')
+                    from_path = direc_path + '/' + local + '/' + filename
+                                    
+                if from_path == 'precinct':
+                    filename = local + '_precincts.shp'
+                    from_path = direc_path + '/' + local + '/' + filename
+                    
                 # Delete CPG files. Throws incorrect encoding error due to 
                 # ArcGIS incorrectly writing the encoding type
-                cpg_path_out = ''.join(out_path.split('.')[:-1]) + '.cpg'
-                if os.path.exists(cpg_path_out):
-                    os.remove(cpg_path_out)
+                cpg_path_to = ''.join(to_path.split('.')[:-1]) + '.cpg'
+                if os.path.exists(cpg_path_to):
+                    os.remove(cpg_path_to)
                     
-                cpg_path_in = ''.join(in_path.split('.')[:-1]) + '.cpg'
-                if os.path.exists(cpg_path_in):
-                    os.remove(cpg_path_in)
-                    
+                cpg_path_from = ''.join(from_path.split('.')[:-1]) + '.cpg'
+                if os.path.exists(cpg_path_from):
+                    os.remove(cpg_path_from)
+
                 # run majority areal interpolation
-                new_df_out = majority_areal_interpolation(out_path, in_path, \
+                new_df_to = majority_areal_interpolation(to_path, from_path, \
                                                           adjust_cols)
                 
                 # Change to correct datatypes if numbers
-                for col in new_df_out.columns:
-                    new_df_out[col] = pd.to_numeric(new_df_out[col], \
+                for col in new_df_to.columns:
+                    new_df_to[col] = pd.to_numeric(new_df_to[col], \
                                                       errors='ignore')
-                # save new out dataframe
-                new_df_out.to_file(out_path)
-                
-                # print runtime
-                print(time.time() - start)
+                # save new "to" dataframe
+                new_df_to.to_file(to_path)
                 
             except Exception as e:
                 print('exception')
@@ -82,64 +105,65 @@ def main():
     except:
         print('ERROR: Reading in CSV file')
         
-def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
+def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
     ''' Perform majority area areal interpolation on two dataframes. Returns
-    the modified dataframe (out_df)
+    the modified dataframe (to_df)
     
     Arguments:
-        out_df_path: path to the shapefile containing the dataframe to be 
+        to_df_path: path to the shapefile containing the dataframe to be 
         modified
-        in_df_path: path to the shapefile used to modify out_df
-        adjust_cols: list of tuples that determine which df_out columns are
-        set equal to which df_in cols. [(df_out_col1, df_in_col1),
-        (df_out_col2, df_in_col2),...]'''
+        from_df_path: path to the shapefile used to modify to_df
+        adjust_cols: list of tuples that determine which df_to columns are
+        set equal to which df_from cols. Format column is string manipulation
+        to apply such as upper/lower/title case [(df_to_col1, df_from_col1, 
+        format_col1), (df_to_col2, df_from_col2, format_col2),...]'''
 
     # Read in input dataframe
-    df_in = gpd.read_file(in_df_path)
-    df_in.index = df_in.index.astype(int)
+    df_from = gpd.read_file(from_df_path)
+    df_from.index = df_from.index.astype(int)
 
     # Read in output dataframe
-    df_out = gpd.read_file(out_df_path)
+    df_to = gpd.read_file(to_df_path)
 
-    # Create necessary output columns in the out_df
-    df_out_cols = list(df_out.columns)
+    # Create necessary output columns in the to_df
+    df_to_cols = list(df_to.columns)
 
     for tup in adjust_cols:
-        if tup[0] not in df_out_cols:
-            df_out[tup[0]] = pd.Series(dtype=object)
+        if tup[0] not in df_to_cols:
+            df_to[tup[0]] = pd.Series(dtype=object)
     
     # construct r-tree spatial index. Creates minimum bounding rectangle about
-    # each geometry in df_in
-    si = df_in.sindex
+    # each geometry in df_from
+    si = df_from.sindex
     
-    # get centroid for al elements in df_in to take care of no intersection
+    # get centroid for al elements in df_from to take care of no intersection
     # cases
-    df_in['centroid'] = pd.Series(dtype=object) 
-    for j, _ in df_in.iterrows():
-        df_in.at[j, 'centroid'] = df_in.at[j, 'geometry'].centroid
+    df_from['centroid'] = pd.Series(dtype=object) 
+    for j, _ in df_from.iterrows():
+        df_from.at[j, 'centroid'] = df_from.at[j, 'geometry'].centroid
     
-    # iterate through every geometry in the out_df to match with in_df and set
+    # iterate through every geometry in the to_df to match with from_df and set
     # target values
-    for i, _ in df_out.iterrows():
+    for i, _ in df_to.iterrows():
     
         # initialize current element's geometry and check which for minimum
         # bounding rectangle intersections
-        df_out_elem_geom = df_out.at[i, 'geometry']
-        poss_df_in_elem = [df_in.index[i] for i in \
-                      list(si.intersection(df_out_elem_geom.bounds))]
+        df_to_elem_geom = df_to.at[i, 'geometry']
+        poss_df_from_elem = [df_from.index[i] for i in \
+                      list(si.intersection(df_to_elem_geom.bounds))]
         
-        # If precinct's MBR only in_df geometry. Set it equal
-        if len(poss_df_in_elem) == 1:
-            df_in_elem = poss_df_in_elem[0]
+        # If precinct's MBR only from_df geometry. Set it equal
+        if len(poss_df_from_elem) == 1:
+            df_from_elem = poss_df_from_elem[0]
         else:
             # for cases with multiple matches, compare fractional area
             frac_area = {}
             found_majority = False
-            for j in poss_df_in_elem:
+            for j in poss_df_from_elem:
                 if not found_majority:
-                    area = df_in.at[j, 'geometry'].intersection(\
-                                   df_out_elem_geom).area / \
-                                   df_out_elem_geom.area
+                    area = df_from.at[j, 'geometry'].intersection(\
+                                   df_to_elem_geom).area / \
+                                   df_to_elem_geom.area
                     # Majority area means, we can assign
                     if area > .5:
                         found_majority = True
@@ -147,30 +171,49 @@ def majority_areal_interpolation(out_df_path, in_df_path, adjust_cols):
                     
             # if there was intersection get max of frac area
             if len(frac_area) > 0:
-                df_in_elem = max(frac_area.items(), \
+                df_from_elem = max(frac_area.items(), \
                                  key=operator.itemgetter(1))[0]
             # No intersection so found nearest centroid
             else:
                 # get centroid on the current geometry
-                c = df_out.at[i, 'geometry'].centroid
+                c = df_to.at[i, 'geometry'].centroid
                 min_dist = -1
                 
                 # find the minimum distance index
-                for j, _ in df_in.iterrows():
-                    cur_dist = c.distance(df_in.at[j, 'centroid'])
+                for j, _ in df_from.iterrows():
+                    cur_dist = c.distance(df_from.at[j, 'centroid'])
                     if min_dist == -1 or cur_dist < min_dist:
-                        df_in_elem = j
+                        df_from_elem = j
                         min_dist = cur_dist
                 
-        # Set corresponding df_out values to df_in values if the column exist
-        # in in_df     
-        df_in_cols = df_in.columns
+        # Set corresponding df_to values to df_from values if the column exist
+        # in from_df     
+        df_from_cols = df_from.columns
         for tup in adjust_cols:
-            if tup[1] in df_in_cols:
-                df_out.at[i, tup[0]] = df_in.at[df_in_elem, tup[1]]
-        
+            # Interpolate
+            if tup[1] in df_from_cols:
+                input_str = df_from.at[df_from_elem, tup[1]]
+                
+                # Set formatting from input
+                if tup[2] == 'U':
+                    input_str = input_str.upper()
+                elif tup[2] == 'L':
+                    input_str = input_str.lower()
+                elif tup[2] == 'T':
+                    input_str = titlecase(input_str)
+                    
+                df_to.at[i, tup[0]] = input_str
+    
+    # Delete and print columns that are missing in from dataframe
+    drop_cols = []
+    for tup in adjust_cols:
+        if tup[1] not in df_from_cols:
+            print('Column not in from df: ' + tup[1])
+            drop_cols.append(tup[1])
+    df_to = df_to.drop(columns=drop_cols)
+            
     # Return output dataframe
-    return df_out
+    return df_to
 
 if __name__ == '__main__':
     main()
