@@ -4,7 +4,7 @@ import os
 import csv
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/merge_shapefiles_northumberland.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Merge CSV/merge_shapefiles_final.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the difference
@@ -20,7 +20,6 @@ try:
     direc_path = data[0][1]
     out_path = data[1][1]
     col_keep = data[2][1]
-    
 
     # Import table from CSV into pandas dataframe
     name_list = ['Locality Name', 'Path']
@@ -29,7 +28,7 @@ try:
     # Initialize out_df, which contains the results of the difference
     new_cols = ['Result', 'Locality Name', 'Notes']
     out_df = pd.DataFrame(columns=new_cols)
-    
+
     # Iterate through each county we are finding the difference for
     for i, _ in csv_df.iterrows():
         
@@ -40,7 +39,6 @@ try:
             
             # Get path to load in
             path_shape = csv_df.at[i, 'Path']
-            print(path_shape.split('/')[-1])
             
             if path_shape == 'census_block':
                 filename = local + '_census_block.shp'
@@ -51,6 +49,13 @@ try:
                 filename = local + '_precincts.shp'
                 path_shape = direc_path + '/' + local + '/' + filename
                 
+            if path_shape == 'precinct_final':
+                filename = local + '_precincts_final.shp'
+                filename = filename.replace(' ', '_')
+                path_shape = direc_path + '/' + local + '/' + filename
+                
+            print(path_shape.split('/')[-1])
+
             # Read in shapefile
             cpg_path = ''.join(path_shape.split('.')[:-1]) + '.cpg'
             if os.path.exists(cpg_path):
