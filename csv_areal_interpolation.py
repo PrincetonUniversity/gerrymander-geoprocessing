@@ -1,18 +1,16 @@
 import pandas as pd
-import pysal as ps
-import numpy as np
 import geopandas as gpd
-import shapely as shp
 import operator
 import os
 import csv
-import shutil
-import time
 from titlecase import titlecase
+
+# Transfer an attribute column to another shapefile using areal interpolation.
+# This can also be used to change the formatting of another 
 
 def main():
     # Get path to our CSV file
-    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/BH_Interpolate_Aug18.csv"
+    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/Interpolate_Portsmouth_Aug18.csv"
     
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
@@ -124,24 +122,39 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
 
     # Read in output dataframe
     df_to = gpd.read_file(to_df_path)
-
-    # Create necessary output columns in the to_df
-    df_to_cols = list(df_to.columns)
-
-    for tup in adjust_cols:
-        if tup[0] not in df_to_cols:
-            df_to[tup[0]] = pd.Series(dtype=object)
     
+    # Need to define which columns in the to dataframe to drop. We will drop
+    # all columns from the csv that actually exist in the to dataframe. We
+    # will also drop columns in the to_
+    drop_cols_before = []
+    drop_cols_after = []
+    for tup in adjust_cols:
+        # add to before drop
+        if tup[0] in df_to.columns:
+            drop_cols_before.append(tup[0])
+            
+        # add to after drop
+        if tup[1] not in df_from.columns:
+            print('Column not in from df: ' + tup[1])
+            drop_cols_after.append(tup[0])
+            
+    # Drop columns that are already in df_to
+    df_to = df_to.drop(columns=drop_cols_before)
+
+    # Create all output columns in the to_df
+    for tup in adjust_cols:
+        df_to[tup[0]] = pd.Series(dtype=object)
+
     # construct r-tree spatial index. Creates minimum bounding rectangle about
     # each geometry in df_from
     si = df_from.sindex
-    
+
     # get centroid for al elements in df_from to take care of no intersection
     # cases
     df_from['centroid'] = pd.Series(dtype=object) 
     for j, _ in df_from.iterrows():
         df_from.at[j, 'centroid'] = df_from.at[j, 'geometry'].centroid
-    
+
     # iterate through every geometry in the to_df to match with from_df and set
     # target values
     for i, _ in df_to.iterrows():
@@ -151,7 +164,7 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
         df_to_elem_geom = df_to.at[i, 'geometry']
         poss_df_from_elem = [df_from.index[i] for i in \
                       list(si.intersection(df_to_elem_geom.bounds))]
-        
+
         # If precinct's MBR only from_df geometry. Set it equal
         if len(poss_df_from_elem) == 1:
             df_from_elem = poss_df_from_elem[0]
@@ -168,7 +181,7 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
                     if area > .5:
                         found_majority = True
                     frac_area[j] = area
-                    
+
             # if there was intersection get max of frac area
             if len(frac_area) > 0:
                 df_from_elem = max(frac_area.items(), \
@@ -185,7 +198,7 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
                     if min_dist == -1 or cur_dist < min_dist:
                         df_from_elem = j
                         min_dist = cur_dist
-                
+
         # Set corresponding df_to values to df_from values if the column exist
         # in from_df     
         df_from_cols = df_from.columns
@@ -193,7 +206,7 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
             # Interpolate
             if tup[1] in df_from_cols:
                 input_str = df_from.at[df_from_elem, tup[1]]
-                
+
                 # Set formatting from input
                 if tup[2] == 'U':
                     input_str = input_str.upper()
@@ -201,17 +214,12 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
                     input_str = input_str.lower()
                 elif tup[2] == 'T':
                     input_str = titlecase(input_str)
-                    
+
                 df_to.at[i, tup[0]] = input_str
-    
+
     # Delete and print columns that are missing in from dataframe
-    drop_cols = []
-    for tup in adjust_cols:
-        if tup[1] not in df_from_cols:
-            print('Column not in from df: ' + tup[1])
-            drop_cols.append(tup[1])
-    df_to = df_to.drop(columns=drop_cols)
-            
+    df_to = df_to.drop(columns=drop_cols_after)
+
     # Return output dataframe
     return df_to
 
