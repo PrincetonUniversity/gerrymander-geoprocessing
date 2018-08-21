@@ -10,7 +10,7 @@ import pandas as pd
 import re
 
 # Initialize csv string
-elec_csv = './electionsVA_2016_General_VA.csv'
+elec_csv = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Election Results/2016 November General.csv"
 
 # Initialize shp file string
 shp_path = 'G:/Team Drives/princeton_gerrymandering_project/mapping/VA/2010 Census/tl_2012_51_vtd10.shp'
@@ -77,16 +77,7 @@ def zero_if_multiple(x):
         return x
     else:
         return 0
-
-# =============================================================================
-# raw_pivot = raw_df.pivot_table(index=[county_fips_str_raw, 'VTD', 'precinct_name'], \
-#                                columns=[lname_str, fname_str, office_str],\
-#                           values=votes_str, aggfunc=zero_if_multiple)
-# raw_pivot = raw_pivot[[cand1_lname, cand2_lname]]
-# raw_pivot[cand1_lname] = raw_pivot[cand1_lname].fillna(0)
-# raw_pivot[cand2_lname] = raw_pivot[cand2_lname].fillna(0)
-# =============================================================================
-
+    
 raw_pivot = raw_df.pivot_table(index=[county_fips_str_raw, 'precinct_name'], \
                                columns=[lname_str, fname_str, office_str],\
                           values=votes_str, aggfunc=zero_if_multiple)
@@ -94,7 +85,7 @@ raw_pivot = raw_pivot[[cand1_lname, cand2_lname]]
 raw_pivot[cand1_lname] = raw_pivot[cand1_lname].fillna(0)
 raw_pivot[cand2_lname] = raw_pivot[cand2_lname].fillna(0)
 
-raw_pivot.to_csv('./foo.csv')
+raw_pivot.to_csv('./Result_2016_test.csv')
 #%% Check both name and FIP
 # =============================================================================
 
@@ -124,28 +115,30 @@ raw_pivot.to_csv('./foo.csv')
 #                 geo_df.at[i, year + '_' + cand] = None
 # =============================================================================
                 
-geo_df = gpd.read_file(shp_path)
-geo_df[year + '_' + cand1_lname] = pd.Series(dtype=object)
-geo_df[year + '_' + cand2_lname] = pd.Series(dtype=object)
-
-# Make all VTDs be a string of length 3
-geo_df[vtd_str_geo] = geo_df[vtd_str_geo].apply(lambda x: str(int(x)).zfill(3)) 
-
-# iterate through every precinct
-for i, row in geo_df.iterrows():
-    # Set index from geo_df
-    index = (int(row[county_fips_str_geo]), row['NAME10'].upper()[:8])
-    # Iterate through both candidates
-    for cand in [cand1_lname, cand2_lname]:
-        if index in raw_pivot.index:
-            geo_df.at[i, year + '_' + cand] = raw_pivot.loc[index][cand][0]
-        else:
-            geo_df.at[i, year + '_' + cand] = None
+# =============================================================================
+# geo_df = gpd.read_file(shp_path)
+# geo_df[year + '_' + cand1_lname] = pd.Series(dtype=object)
+# geo_df[year + '_' + cand2_lname] = pd.Series(dtype=object)
+# 
+# # Make all VTDs be a string of length 3
+# geo_df[vtd_str_geo] = geo_df[vtd_str_geo].apply(lambda x: str(int(x)).zfill(3)) 
+# 
+# # iterate through every precinct
+# for i, row in geo_df.iterrows():
+#     # Set index from geo_df
+#     index = (int(row[county_fips_str_geo]), row['NAME10'].upper()[:8])
+#     # Iterate through both candidates
+#     for cand in [cand1_lname, cand2_lname]:
+#         if index in raw_pivot.index:
+#             geo_df.at[i, year + '_' + cand] = raw_pivot.loc[index][cand][0]
+#         else:
+#             geo_df.at[i, year + '_' + cand] = None
+# =============================================================================
 
 #%%
 
 
-print(sum(geo_df[year + '_' + cand1_lname].isnull()) / len(geo_df))
+#print(sum(geo_df[year + '_' + cand1_lname].isnull()) / len(geo_df))
 
 
 
