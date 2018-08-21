@@ -61,6 +61,11 @@ def main():
                 if to_path == 'precinct':
                     filename = local + '_precincts.shp'
                     to_path = direc_path + '/' + local + '/' + filename
+                    
+                if to_path == 'precinct_final':
+                    filename = local + '_precincts_final.shp'
+                    filename = filename.replace(' ', '_')
+                    to_path = direc_path + '/' + local + '/' + filename
                 
                 # set from path
                 from_path = csv_df.at[i, 'from_df path']
@@ -72,6 +77,11 @@ def main():
                                     
                 if from_path == 'precinct':
                     filename = local + '_precincts.shp'
+                    from_path = direc_path + '/' + local + '/' + filename
+                    
+                if from_path == 'precinct_final':
+                    filename = local + '_precincts_final.shp'
+                    filename = filename.replace(' ', '_')
                     from_path = direc_path + '/' + local + '/' + filename
                     
                 # Delete CPG files. Throws incorrect encoding error due to 
