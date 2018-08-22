@@ -38,7 +38,6 @@ def aggregate(source, target, source_columns=None, target_columns=None, method='
     """
 
     # add empty columns to be filled in
-    source = pd.concat([source, pd.DataFrame(columns=target_columns)])
     source = pd.concat([source, pd.DataFrame(columns=target_columns)], sort=False)
     target = pd.concat([target, pd.DataFrame(columns=source_columns)], sort=False)
     
@@ -56,11 +55,15 @@ def aggregate(source, target, source_columns=None, target_columns=None, method='
             possible_matches = [target.index[m] for m in list(si.intersection(shape.bounds))]
         else:
             possible_matches = target.index
-
-        if len(possible_matches) == 1:
+        
+        if len(possible_matches) == 0:
+            match = None
+            
+        elif len(possible_matches) == 1:
             match = possible_matches[0]
             if method == 'fractional_area':
                 frac_area = {match: 1}
+                
         else:
             if method == 'greatest_area' or method == 'fractional_area':
                 frac_area = {}
@@ -80,19 +83,20 @@ def aggregate(source, target, source_columns=None, target_columns=None, method='
                     if target.loc[j, 'geometry'].contains(shape.centroid):
                         match = j
                         break
-
-        if target_columns is not None:
-            for col in target_columns:
-                source.loc[i, col] = target.loc[match, col]
-        else:
-            source.loc[i, 'target_index'] = match
         
-        if source_columns is not None:
-            for col in source_columns:
-                if method == 'fractional_area':
-                    for j in possible_matches:
-                        target.loc[j, col] += source.loc[i, col] * frac_area[j]
-                else:
-                    target.loc[match, col] += source.loc[i, col]
+        if match is not None:
+            if target_columns is not None:
+                for col in target_columns:
+                    source.loc[i, col] = target.loc[match, col]
+            else:
+                source.loc[i, 'target_index'] = match
+            
+            if source_columns is not None:
+                for col in source_columns:
+                    if method == 'fractional_area':
+                        for j in possible_matches:
+                            target.loc[j, col] += source.loc[i, col] * frac_area[j]
+                    else:
+                        target.loc[match, col] += source.loc[i, col]
 
     return source, target
