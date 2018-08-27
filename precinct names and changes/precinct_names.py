@@ -9,8 +9,7 @@ import pandas as pd
 def main():
     
     # initialize path to csv 
-    csv_path = 'C:/Users/conno/Documents/GitHub/precinct_collection/'\
-    'VA_election_result_paths.csv'
+    csv_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct names and changes/VA_precinct_2018_Changes.csv"
 
     # initialize list of columns from csv
     name_list = ['Name', 'Path', 'Join Cols', 'Join Delim', 'Split Cols', \
@@ -33,8 +32,17 @@ def main():
 
     
     # Initialize Changes Dataframe
+# =============================================================================
+#     cols = ['Name', 'Error Type', 'Error Local 1', 'Error Local 2',\
+#             'Error Num 1', 'Error Num 2', 'Error: First Elec Has Prec', \
+#             'Error Second Elec Has Prec']
+#     
+# =============================================================================
+    
     cols = ['Name', 'Error Type', 'Error Local 1', 'Error Local 2',\
-            'Error Num 1', 'Error Num 2', 'Error Prec 1', 'Error Prec 2']
+        'Error Num 1', 'Error Num 2', 'Error Prec 1 (No Match in Elec 2)',\
+        'Error Prec 2 (No Match in Elec 1)']
+        
     change_df = pd.DataFrame(columns=cols, dtype=str)
         
     # Create precinct name dataframe and assign to name in dictionary
@@ -60,7 +68,7 @@ def main():
                                               name1, name2)
                 change_df = pd.concat([change_df, c_df]).reset_index(drop=True)
 
-    change_df.to_csv('./error_df.csv')
+    change_df.to_csv("C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct names and changes/Changes_Sequential.csv")
     
 def join_list(l, delimiter):
     ''' Takes list and returns a string containing the elements of the list
@@ -128,8 +136,11 @@ def prec_matching_error_df(df1, df2, df1_name, df2_name):
         '''
     
     # create dataframe
-    cols = ['Name', 'Error Type', 'Error Local 1', 'Error Local 2',\
-            'Error Num 1', 'Error Num 2', 'Error Prec 1', 'Error Prec 2']
+    cols = cols = ['Name', 'Error Type', 'Error Local 1', 'Error Local 2',\
+        'Error Num 1', 'Error Num 2', 'Error Prec 1 (No Match in Elec 2)',\
+        'Error Prec 2 (No Match in Elec 1)']
+    error_p1_str = 'Error Prec 1 (No Match in Elec 2)'
+    error_p2_str = 'Error Prec 2 (No Match in Elec 1)'
     error_df = pd.DataFrame(columns=cols, dtype=str)
     
     # create string that will gives names of the two years
@@ -169,7 +180,7 @@ def prec_matching_error_df(df1, df2, df1_name, df2_name):
         if num1 != num2:
             
             error_df.at[ix, 'Name'] = name_str
-            error_df.at[ix, 'Error Type'] = 'Precincts Do Not Match: ' + loc
+            error_df.at[ix, 'Error Type'] = loc
             error_df.at[ix, 'Error Num 1'] = str(num1)
             error_df.at[ix, 'Error Num 2'] = str(num2)
         
@@ -182,10 +193,10 @@ def prec_matching_error_df(df1, df2, df1_name, df2_name):
             
             error_df.at[ix, 'Name'] = name_str
             
-            error_df.at[ix, 'Error Type'] = 'Precincts Do Not Match: ' + loc
+            error_df.at[ix, 'Error Type'] = loc
                                                 
-            error_df.at[ix, 'Error Prec 1'] = join_list(prec_err[0], ',')
-            error_df.at[ix, 'Error Prec 2'] = join_list(prec_err[1], ',')
+            error_df.at[ix, error_p1_str] = join_list(prec_err[0], ',')
+            error_df.at[ix, error_p2_str] = join_list(prec_err[1], ',')
            
     return error_df
     
@@ -235,9 +246,13 @@ def generate_df_from_str_list(delimited_list, col_names, delimiter):
     df = pd.DataFrame(columns=cols, dtype=str)
     df['original'] =  delimited_list
     
-    # set other columns in dataframe. ALso remove whitespace before and after
-    # the delimiter
+    # print errors
+    for i in delimited_list:
+        if len(i.split(delimiter)) < 3:
+            print(i)
     
+    # set other columns in dataframe. ALso remove whitespace before and after
+    # the delimiter    
     for ix, col in enumerate(col_names):
         df[col] = [i.split(delimiter)[ix].strip() for i in delimited_list] 
         
@@ -248,11 +263,6 @@ def generate_df_from_str_list(delimited_list, col_names, delimiter):
             drop_rows.append(i)
             
     df = df.drop(drop_rows)
-    
-    # print errors
-    for i in delimited_list:
-        if len(i.split(delimiter)) < 3:
-            print(i)
         
     return df
 
