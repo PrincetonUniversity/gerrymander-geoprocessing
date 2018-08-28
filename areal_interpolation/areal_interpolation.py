@@ -1,5 +1,6 @@
 import pandas as pd
 import operator
+from tqdm import tqdm
 
 def aggregate(source, target, source_columns=None, target_columns=None, method='fractional_area', spatial_index=True):
     """
@@ -48,7 +49,7 @@ def aggregate(source, target, source_columns=None, target_columns=None, method='
     if spatial_index:
         si = target.sindex
 
-    for i, _ in source.iterrows():
+    for i in tqdm(source.index):
         shape = source.loc[i, 'geometry']
 
         if spatial_index:
