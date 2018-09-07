@@ -842,28 +842,55 @@ def shp_from_sampling(local, num_regions, shape_path, out_folder,\
         
     return len(df)
 
-def save_shapefile(df, file_str, cols_to_exclude=[]):
-    ''' Saves geodataframe to shapefile, deleting columns specified by user.
+def save_shapefile(df, file_path, cols_to_exclude=[]):
+    ''' Saves a geodataframe to shapefile, deletes columns specified by user.
+    If the path already exists a backup will be created in the path ./Backup/
     
     Arguments:
         df: geodataframe to be written to file
         file_str: string file path
         cols_to_exclude: columns from df to be excluded from attribute table
             (possibly because it cannot be written, like an array)
-    
+            
     Output: 1
     '''
     # make temporary dataframe so we can exclude columns
-    df1 = df
+    df = df.drop(columns=cols_to_exclude)
     
-    # delete columns
-    df1 = df1.drop(columns=cols_to_exclude)
-    
-    # sanitize values in dataframe due to weird fiona bug
-    for col in df1.columns:
-        df1[col] = pd.to_numeric(df1[col], errors='ignore')
+    # Attempt to fix object types in dataframe by converting to float if
+    # possible
+    for col in df.columns:
+        try:
+            df[col] = df[col].astype(float)
+        except:
+            continue
+
+    # Create backup if path already exists
+    if os.path.exists(file_path):
+        backup_dir = '/'.join(file_path.split('/')[:1]) + '/Backup'
         
-    # write shapefile
-    df1.to_file(file_str)
+        # Create backup folder if it does not already exist
+        if os.path.exists(backup_dir):
+            os.mkdir(backup_dir)
+        
+        # Save file to backup folder
+        backup_path = backup_dir + '/' + file_path.split('/')[-1]
+        df.to_file(backup_path)
+
+    
+    # Save file if the file does not already exist
+    else:
+        df.to_file(file_path)
     
     return 1
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
