@@ -931,6 +931,23 @@ def default_path(path, local, direc_path):
 
     return path
     
+def set_CRS(gdf, new_crs='epsg:4269'):
+    ''' This function will set a coordinate reference system (CRS) for a a 
+    geodataframe
     
+    Arguments
+        gdf: This is the geodataframe that we are converting to a different
+                coordinate reference systems
+        new_crs: This is the CRS we are converting to. This is usually in the
+        form epsg:####'''
     
+    # If no CRS set, set it with .crs
+    if gdf.crs == None:
+        gdf.crs = {'init': new_crs}
+    
+    # Transform CRS
+    else:
+        gdf = gdf.to_crs({'init': new_crs})
+        
+    return gdf
     
