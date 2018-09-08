@@ -1,16 +1,5 @@
 import time
 import pandas as pd
-import pysal as ps
-import geopandas as gpd
-from PIL import Image
-import os
-import numpy as np
-import math
-import shapely as shp
-from shapely.geometry import Polygon
-from shapely.geometry import Point
-from collections import Counter
-import csv
 import helper_tools as ht
 
 # Get path to our CSV file
@@ -25,7 +14,7 @@ def main():
         direc_path = ht.read_one_csv_elem(csv_path)
         
         # Import table from CSV into pandas df
-        csv_col = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
+        csv_col = ['Locality', 'Num Regions', 'Census Path', 'Out Path',\
                      'Image Path', 'Colors']
         csv_list = []
         csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
@@ -48,29 +37,19 @@ def main():
                 local = csv_df.at[i, 'Locality']
                 num_regions = csv_df.at[i, 'Num Regions']
                 shape_path = csv_df.at[i, 'Census Path']
-                out_folder = csv_df.at[i, 'Out Folder']
+                out_path = csv_df.at[i, 'Out Path']
                 img_path = csv_df.at[i, 'Image Path']
                 num_colors = csv_df.at[i, 'Colors']
-        
-                # Change census shapefile path and out folder if set to default
-                if shape_path == 1:
-                    census_filename = local + '_census_block.shp'
-                    census_filename = census_filename.replace(' ', '_')
-                    shape_path = direc_path + '/' + local + '/' + \
-                                    census_filename
-                    
-                if out_folder == 1:
-                    out_folder = direc_path + '/' + local
-                    
-                # set ouput shapefile name
-                out_name = local + '_precinct'
-                out_name = out_name.replace(' ', '_')
+
+                # Change census shapefile path and out path if set to default
+                shape_path = ht.default_path(shape_path, local, direc_path)
+                out_path = ht.default_path(out_path, local, direc_path)
                 
                 # Generate precinct shapefile and add corresponding precinct
                 # index to the attribute field of the census block shapefile
                 print('\n' + local)
                 result =  ht.shp_from_sampling(local, num_regions, shape_path,\
-                                               out_folder, img_path, \
+                                               out_path, img_path, \
                                                num_colors)
                 
                 # Place Results in out_df. Save time taken and number of 
