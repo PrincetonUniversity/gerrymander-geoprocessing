@@ -903,10 +903,33 @@ def delete_cpg(path):
     if os.path.exists(cpg_path):
         os.remove(cpg_path)
     
+def default_path(path, local, direc_path):
+    '''If the path is a keyword, the path to a designated shapefile will be
+    returned. The possible default keywords are census_block, precinct,
+    precinct_final
     
+    Arguments:
+        path: current path to the shapefile. Might be a default keyword
+        local: name of the locality, which will be the parent directory
+        direc_path: directory path to all of the locality folders
+    '''
     
-    
-    
+    if path == 'census_block':
+        filename = local + '_census_block.shp'
+        filename = filename.replace(' ', '_')
+        path = direc_path + '/' + local + '/' + filename
+                        
+    if path == 'precinct':
+        filename = local + '_precincts.shp'
+        filename = filename.replace(' ', '_')
+        path = direc_path + '/' + local + '/' + filename
+        
+    if path == 'precinct_final':
+        filename = local + '_precincts_final.shp'
+        filename = filename.replace(' ', '_')
+        path = direc_path + '/' + local + '/' + filename
+
+    return path
     
     
     
