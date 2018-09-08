@@ -568,66 +568,6 @@ def split_noncontiguous(df, cols_to_copy=[]):
     
     return df
 
-def shp_from_sampling(local, num_regions, shape_path, out_folder,\
-                                img_path, colors=0, sample_limit=500):
-    ''' Generates a precinct level shapefile from census block data and an 
-    image cropped to a counties extents. Also updates the attribute table in
-    the census block shapefile to have a precinct value.
-    
-    Arguments:
-        local: name of the locality
-        num_regions: number of precincts in the locality
-        shape_path: full path to the census block shapefile
-        out_folder: directory that precinct level shapefile will be saved in
-        img_path: full path to image used to assign census blocks to precincts
-        
-    Output:
-        Number of census blocks in the county
-        '''        
-    # Convert image to array, color reducing if specified
-    img = Image.open(img_path)
-    if colors > 0:
-        img = reduce_colors(img, colors)
-    img_arr = np.asarray(img)
-
-    # Delete CPG file if it exists
-    cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
-    if os.path.exists(cpg_path):
-        os.remove(cpg_path)
-    
-    # read in census block shapefile
-    df = gpd.read_file(shape_path)
-
-    # Create a new color and district index series in the dataframe
-    add_cols = ['color', 'region', 'area']
-    for i in add_cols:
-        df[i] = pd.Series(dtype=object)
-    
-    # Calculate boundaries of the geodataframe using union of geometries
-    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
-    
-    # Calculate global bounds for shape
-    shp_xlen = bounds[2] - bounds[0]
-    shp_ylen = bounds[3] - bounds[1]
-    shp_xmin = bounds[0]
-    shp_ymin = bounds[1]
-    
-    # Iterate through each polygon and assign its most common color
-    for i, _ in df.iterrows():
-        
-        # Get current polygon
-        poly = df.at[i, 'geometry']
-        
-        # Set color for census block
-        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
-             shp_xlen, shp_ymin, shp_ylen, sample_limit)
-            
-    # Assign each polygon with a certain color a district index
-    for i, color in enumerate(df['color'].unique()):
-        df.loc[df['color'] == color, 'region'] = i
-        
-    return len(df)
-
 def fraction_shared_perim(nbrs, indices, perim):
     ''' Helper function for merge_geometries to calculate the fraction
     of a shape's perimeter that is shared with shapes at certain indices.
