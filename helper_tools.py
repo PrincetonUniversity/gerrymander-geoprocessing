@@ -16,6 +16,8 @@ from collections import Counter
 import csv
 import operator
 import datetime
+from titlecase import titlecase
+import shutil
 
 def generate_bounding_frame(df, file_str):
     ''' Generates and saves a bounding frame for the geometries in a dataframe
@@ -863,7 +865,7 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
     # Create backup if path already exists
     if os.path.exists(file_path):
         backup_dir = '/'.join(file_path.split('/')[:-1]) + '/Backup'
-        print(backup_dir)
+
         # Create backup folder if it does not already exist
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
@@ -873,13 +875,15 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
         d = str(t.month) + '-' + str(t.day) + '-' + str(t.year) + '_' + \
             str(t.hour) + '-' + str(t.minute)        
         
-        # Save file to backup folder
+        # Save old file to backup folder
         filename = file_path.split('/')[-1]
         file_no_ext = '.'.join(filename.split('.')[:-1])
         file_ext = filename.split('.')[-1]
         backup_path = backup_dir + '/' + file_no_ext + '_' + d + '.' + file_ext
+        shutil.copy(file_path, backup_path)
         
-        df.to_file(backup_path)
+        # Save the new file to the folder
+        df.to_file(file_path)
 
     # Save file if the file does not already exist
     else:
@@ -988,7 +992,9 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
         adjust_cols: list of tuples that determine which df_to columns are
         set equal to which df_from cols. Format column is string manipulation
         to apply such as upper/lower/title case [(df_to_col1, df_from_col1, 
-        format_col1), (df_to_col2, df_from_col2, format_col2),...]'''
+        format_col1), (df_to_col2, df_from_col2, format_col2),...]
+            
+    Output: To dataframe with the value interpolated'''
 
     # Read in input dataframe
     df_from = gpd.read_file(from_df_path)
