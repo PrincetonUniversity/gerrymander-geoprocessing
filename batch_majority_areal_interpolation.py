@@ -1,3 +1,4 @@
+import geopandas as gpd
 import helper_tools as ht
 
 # Transfer an attribute column to another shapefile using areal interpolation.
@@ -52,10 +53,13 @@ try:
             # Delete CPG files for to and from
             ht.delete_cpg(to_path)
             ht.delete_cpg(from_path)
+            
+            df_to = gpd.read_file(to_path)
+            df_from = gpd.read_file(from_path)
                 
             # run majority areal interpolation
-            new_df_to = ht.majority_areal_interpolation(to_path, \
-                                                    from_path, adjust_cols)
+            new_df_to = ht.majority_areal_interpolation(df_to, df_from, \
+                                                        adjust_cols)
             
             # Save the new "to" df
             ht.save_shapefile(new_df_to, to_path)
