@@ -899,10 +899,9 @@ def delete_cpg(path):
     of the scripts, it is beneficially to ensure an encoding error does throw
     an error'''
     
-    cpg_path = ''.join(path.split('.')[:-1]) + '.cpg'
+    cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
     if os.path.exists(cpg_path):
         os.remove(cpg_path)
-    
     
     
     
