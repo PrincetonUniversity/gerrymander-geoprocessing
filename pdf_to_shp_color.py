@@ -11,7 +11,7 @@ from shapely.geometry import Polygon
 from shapely.geometry import Point
 from collections import Counter
 import csv
-import helper_tools as tools
+import helper_tools as ht
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/TestTools.csv"
@@ -20,16 +20,15 @@ def main():
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer
     try:
+        
         # Import Google Drive path
-        with open(csv_path) as f:
-            reader = csv.reader(f)
-            data = [r for r in reader]
-        direc_path = data[0][1]
-    
-        # Import table from CSV into pandas dataframe
-        name_list = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
+        direc_path = ht.read_one_csv_elem(csv_path)
+        
+        # Import table from CSV into pandas df
+        csv_col = ['Locality', 'Num Regions', 'Census Path', 'Out Folder',\
                      'Image Path', 'Colors']
-        in_df = pd.read_csv(csv_path, header=1, names=name_list)
+        csv_list = []
+        csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
     
         # Initialize out_df, which contains the results of the transfers and
         # contains what will be copied into the conversion page of the Google
@@ -38,7 +37,7 @@ def main():
         out_df = pd.DataFrame(columns=new_cols)
         
         # Iterate through each county we are creating a shapefile for
-        for i, _ in in_df.iterrows():
+        for i, _ in csv_df.iterrows():
             
             # Create shapefile out of precincts
             try:
@@ -46,12 +45,12 @@ def main():
                 start_time = time.time()
                 
                 # Set unique variables for the current county
-                local = in_df.at[i, 'Locality']
-                num_regions = in_df.at[i, 'Num Regions']
-                shape_path = in_df.at[i, 'Census Path']
-                out_folder = in_df.at[i, 'Out Folder']
-                img_path = in_df.at[i, 'Image Path']
-                num_colors = in_df.at[i, 'Colors']
+                local = csv_df.at[i, 'Locality']
+                num_regions = csv_df.at[i, 'Num Regions']
+                shape_path = csv_df.at[i, 'Census Path']
+                out_folder = csv_df.at[i, 'Out Folder']
+                img_path = csv_df.at[i, 'Image Path']
+                num_colors = csv_df.at[i, 'Colors']
         
                 # Change census shapefile path and out folder if set to default
                 if shape_path == 1:
@@ -69,22 +68,21 @@ def main():
                 
                 # Generate precinct shapefile and add corresponding precinct
                 # index to the attribute field of the census block shapefile
-                print(local)
-                result =  tools.shp_from_sampling(local, num_regions, \
-                                                      shape_path, out_folder, \
-                                                      img_path, 
-                                                      colors=num_colors)
+                print('\n' + local)
+                result =  ht.shp_from_sampling(local, num_regions, shape_path,\
+                                               out_folder, img_path, \
+                                               num_colors)
                 
-                # Place Results in out_df
+                # Place Results in out_df. Save time taken and number of 
+                # census blocks
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'SUCCESS'
                 out_df.at[row, 'Time Taken'] = time.time() - start_time
                 out_df.at[row, 'Num Census Blocks'] = result
             
             # Shapefile creation failed
-            except Exception as e:
-                print(e)
-                print('ERROR:' + in_df.at[i, 'Locality'])
+            except:
+                print('ERROR:' + csv_df.at[i, 'Locality'])
                 row = len(out_df)
                 out_df.at[row, 'Result'] = 'FAILURE'
     
