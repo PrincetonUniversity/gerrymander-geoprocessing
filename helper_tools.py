@@ -951,3 +951,34 @@ def set_CRS(gdf, new_crs='epsg:4269'):
         
     return gdf
     
+def read_one_csv_elem(csv_path, row=0, col=1):
+    ''' This function will return one element of the csv
+    
+    Arguments:
+        csv_path: path to read in the csv_file
+        row: row of the text to read in
+        col: col of the text to read in
+    '''
+    with open(csv_path) as f:
+        reader = csv.reader(f)
+        data = [r for r in reader]
+    return data[row][col]
+
+def csv_to_df(csv_path, head, col_names, list_cols):
+    ''' Read in a csv for batching for other processes
+    
+    Arguments
+        csv_path: path to read in the csv file
+        head: the header row to read in the csv as a pandas df
+        col_names: list column names in order as headers for the pandas df
+        list_cols: columns to convert to lists from comma delimited strings
+    '''
+    # Read in csv as df
+    csv_df = pd.read_csv(csv_path, header=head, names=col_names)
+    
+    # Convert comma delimited string columns to lists
+    for col in list_cols:
+        if col in col_names:
+            csv_df[col] = csv_df[col].str.split(',')
+            
+    return csv_df
