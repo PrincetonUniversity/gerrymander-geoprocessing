@@ -950,7 +950,7 @@ def set_CRS(gdf, new_crs='epsg:4269'):
         gdf = gdf.to_crs({'init': new_crs})
         
     return gdf
-    
+
 def read_one_csv_elem(csv_path, row=0, col=1):
     ''' This function will return one element of the csv
     
@@ -964,7 +964,7 @@ def read_one_csv_elem(csv_path, row=0, col=1):
         data = [r for r in reader]
     return data[row][col]
 
-def csv_to_df(csv_path, head, col_names, list_cols):
+def read_csv_to_df(csv_path, head, col_names, list_cols):
     ''' Read in a csv for batching for other processes
     
     Arguments

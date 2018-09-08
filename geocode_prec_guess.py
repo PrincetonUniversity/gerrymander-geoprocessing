@@ -7,9 +7,8 @@ import os
 import shapely as shp
 from shapely.geometry import Point
 
-
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/precinct_guess_Bethune_Hill.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/precinct_guess_Bethune_Hill_small.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer

@@ -103,6 +103,37 @@ function implement_conditional(sheet_name, color_count_col) {
   
   // apply current rules to sheet
   sheet.setConditionalFormatRules(current_rules) 
+  
+  // Get correct columns in information sheet
+  if (sheet_name == "Collection") {
+    icol1 = "G"
+    icol2 = "H"    
+  }
+  else if (sheet_name == "Digitization") {
+    icol1 = "K"
+    icol2 = "L" 
+  }
+  else if (sheet_name == "Matching") {
+    icol1 = "O"
+    icol2 = "P" 
+  }
+    
+  // Set start ranges
+  irow1 = 8
+  irow2 = 8 + color_count
+    
+  // Get the lookup range and index to look
+  lookup_range = "Info!" + icol1 + irow1 + ":" + icol2 + irow2
+  index = 2
+  // Add vlookup formula in the Note/third column
+  for (j = 0; j < row_count; j++) {
+    row = j + 2
+    search_key = "B" + row   
+    formula = "=VLOOKUP(" + search_key + "," + lookup_range + "," + index + ")"
+    current_range = sheet.getRange(row, 3);
+    current_range.setValue(formula);
+  }
+  
  
   }
 }

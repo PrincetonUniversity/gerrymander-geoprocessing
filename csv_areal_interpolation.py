@@ -10,7 +10,7 @@ from titlecase import titlecase
 
 def main():
     # Get path to our CSV file
-    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/Interpolate_Portsmouth_Aug18.csv"
+    csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/Get_Tract_Area_Aug_29.csv"
     
     # Initial try and except to catch improper csv_path or error exporting the
     # results of the transfer

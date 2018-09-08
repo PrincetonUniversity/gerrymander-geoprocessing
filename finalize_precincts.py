@@ -6,7 +6,7 @@ import shapely as shp
 import csv
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Finalize/Finalize_All_Aug18.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Finalize/New_Ken_Finalize_Aug_21.csv"
 
 def main():
     # Initial try and except to catch improper csv_path or error exporting the
