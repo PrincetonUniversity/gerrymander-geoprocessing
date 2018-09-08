@@ -207,63 +207,6 @@ def reduce_colors(img, num_colors):
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
     return conv_img.convert('RGB')
 
-def assign_blocks_to_regions(cb_df, reg_df):
-    ''' Adds a 'region' column to dataframe of census blocks using areal
-    interpolation with a dataframe with region names and geometries.
-    
-    Arguments:
-        cb_df: dataframe with census blocks
-        reg_df: dataframe with regions
-
-    Output:
-        Modified cb_df with 'region' column
-
-    Note: this will overwrite the 'region' column in cb_df if it already
-        exists.'''
-        
-    # construct spatial tree for precincts
-    reg_df = gpd.GeoDataFrame(reg_df, geometry='geometry')
-    pr_si = reg_df.sindex
-    
-    # instantiate empty 'region' column in cb_df
-    cb_df['region'] = np.nan
-    
-    # iterate through every census block, i is the GEOID10 of the precinct
-    for i, _ in cb_df.iterrows():
-
-        # let census_block equal the geometry of the census_block. Note: later
-        # census_block.bounds is the minimum bounding rectangle for the cb
-        census_block = cb_df.at[i, 'geometry']
-        
-        # Find which MBRs for districts intersect with our cb MBR
-        # MBR: Minimum Bounding Rectangle
-        poss_pr = [reg_df.index[i] for i in \
-                   list(pr_si.intersection(census_block.bounds))]
-        
-        # If precinct MBR only intersects one district's MBR, set the district
-        if len(poss_pr) == 1:
-            PR = poss_pr[0]
-        else:
-            # for cases with multiple matches, compare fractional area
-            frac_area = {}
-            found_majority = False
-            for j in poss_pr:
-                if not found_majority:
-                    area = reg_df.at[j, 'geometry'].intersection(\
-                                     census_block).area / census_block.area
-                    # Majority area means, we can assign district
-                    if area > .5:
-                        found_majority = True
-                    frac_area[j] = area
-            PR = max(frac_area.items(), key=operator.itemgetter(1))[0]
-    
-        # Assign census block region to PR
-        cb_df.at[i, 'region'] = PR
-        
-    # return modified cb_df
-    return cb_df
-
-
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
     '''If any geometry is contained entirely within another geometry, this
@@ -681,104 +624,6 @@ def merge_to_right_number(df, num_regions):
         
     return df
 
-def shp_from_sampling(local, num_regions, shape_path, out_folder,\
-                                img_path, colors=0, sample_limit=500):
-    ''' Generates a precinct level shapefile from census block data and an 
-    image cropped to a counties extents. Also updates the attribute table in
-    the census block shapefile to have a precinct value.
-    
-    Arguments:
-        local: name of the locality
-        num_regions: number of precincts in the locality
-        shape_path: full path to the census block shapefile
-        out_folder: directory that precinct level shapefile will be saved in
-        img_path: full path to image used to assign census blocks to precincts
-        
-    Output:
-        Number of census blocks in the county
-        '''        
-    # Convert image to array, color reducing if specified
-    img = Image.open(img_path)
-    if colors > 0:
-        img = reduce_colors(img, colors)
-    img_arr = np.asarray(img)
-
-    # Delete CPG file if it exists
-    cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
-    if os.path.exists(cpg_path):
-        os.remove(cpg_path)
-    
-    # read in census block shapefile
-    df = gpd.read_file(shape_path)
-
-    # Create a new color and district index series in the dataframe
-    add_cols = ['color', 'region', 'area']
-    for i in add_cols:
-        df[i] = pd.Series(dtype=object)
-    
-    # Calculate boundaries of the geodataframe using union of geometries
-    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
-    
-    # Calculate global bounds for shape
-    shp_xlen = bounds[2] - bounds[0]
-    shp_ylen = bounds[3] - bounds[1]
-    shp_xmin = bounds[0]
-    shp_ymin = bounds[1]
-    
-    # Iterate through each polygon and assign its most common color
-    for i, _ in df.iterrows():
-        
-        # Get current polygon
-        poly = df.at[i, 'geometry']
-        
-        # Set color for census block
-        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
-             shp_xlen, shp_ymin, shp_ylen, sample_limit)
-            
-    # Assign each polygon with a certain color a district index
-    for i, color in enumerate(df['color'].unique()):
-        df.loc[df['color'] == color, 'region'] = i
-        
-    ## CREATE PRECINCTS ##
-    
-    # Get unique values in the df ID column
-    prec_id = list(df.region.unique())
-    
-    df_prec = pd.DataFrame(columns=['region', 'geometry'])
-    
-    # Iterate through all of the precinct IDs and set geometry of df_prec with
-    # union
-    for i in range(len(prec_id)):
-        df_poly = df[df['region'] == prec_id[i]]
-        polys = list(df_poly['geometry'])
-        df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-        df_prec.at[i, 'region'] = prec_id[i]
-        
-    # Remove noncontiguous precincts
-    df_prec = split_noncontiguous(df_prec)
-
-    # Merge precincts fully contained in other precincts
-    df_prec = merge_fully_contained(df_prec)
-
-    # Merge precincts until we have the right number
-    df_prec = merge_to_right_number(df_prec, num_regions)
-
-    # Assign census blocks to regions
-    df = assign_blocks_to_regions(df, df_prec)
-    
-    # Save census block shapefile with updated attribute table
-    save_shapefile(df, shape_path, cols_to_exclude=['color'])
-    
-    # Save precinct shapefile
-    out_name = local + '_precincts'
-    out_name.replace(' ', '_')
-    prec_shape_path = out_folder + '/' + out_name + '.shp'
-    
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    save_shapefile(df_prec, prec_shape_path, ['neighbors'])
-        
-    return len(df)
-
 def save_shapefile(df, file_path, cols_to_exclude=[]):
     ''' Saves a geodataframe to shapefile, deletes columns specified by user.
     If the path already exists a backup will be created in the path ./Backup/
@@ -835,7 +680,12 @@ def delete_cpg(path):
     '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
     encodes a shapefile and incorrectly saves the CPG. Before running most
     of the scripts, it is beneficially to ensure an encoding error does throw
-    an error'''
+    an error
+    
+    Argument
+        path: path to a file that has the same name as the .cpg file. Usually
+        the shapefile
+    '''
     
     cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
     if os.path.exists(cpg_path):
@@ -877,7 +727,8 @@ def set_CRS(gdf, new_crs='epsg:4269'):
         gdf: This is the geodataframe that we are converting to a different
                 coordinate reference systems
         new_crs: This is the CRS we are converting to. This is usually in the
-        form epsg:####'''
+        form epsg:####
+    '''
     
     # If no CRS set, set it with .crs
     if gdf.crs == None:
@@ -921,9 +772,10 @@ def read_csv_to_df(csv_path, head, col_names, list_cols):
             
     return csv_df
 
-def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
+def majority_areal_interpolation(df_to, df_from, adjust_cols):
     ''' Perform majority area areal interpolation on two dataframes. Returns
-    the modified dataframe (to_df)
+    the modified dataframe (to_df). Also assigns element that do not have
+    overlapping bounding boxes by closest centroid distance
     
     Arguments:
         to_df_path: path to the shapefile containing the dataframe to be 
@@ -937,11 +789,7 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
     Output: To dataframe with the value interpolated'''
 
     # Read in input dataframe
-    df_from = gpd.read_file(from_df_path)
     df_from.index = df_from.index.astype(int)
-
-    # Read in output dataframe
-    df_to = gpd.read_file(to_df_path)
     
     # Need to define which columns in the to dataframe to drop. We will drop
     # all columns from the csv that actually exist in the to dataframe. We
@@ -1042,3 +890,98 @@ def majority_areal_interpolation(to_df_path, from_df_path, adjust_cols):
 
     # Return output dataframe
     return df_to
+
+def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
+                      colors=0, sample_limit=500):
+    ''' Generates a precinct level shapefile from census block data and an 
+    image cropped to a locality's extents. Also updates the attribute table in
+    the census block shapefile to have a region value that represents to 
+    precinct id.
+    
+    Arguments:
+        local: name of the locality
+        num_regions: number of precincts in the locality
+        shape_path: full path to the census block shapefile
+        out_folder: directory that precinct level shapefile will be saved in
+        img_path: full path to image used to assign census blocks to precincts
+        
+    Output:
+        Number of census blocks in the county
+        '''        
+    # Convert image to array, color reducing if specified
+    img = Image.open(img_path)
+    if colors > 0:
+        img = reduce_colors(img, colors)
+    img_arr = np.asarray(img)
+
+    # Delete CPG file if it exists
+    delete_cpg(shape_path)
+    
+    # read in census block shapefile
+    df = gpd.read_file(shape_path)
+
+    # Create new series in dataframe
+    add_cols = ['color', 'region']
+    for i in add_cols:
+        df[i] = pd.Series(dtype=object)
+    
+    # Calculate boundaries of the geodataframe using union of geometries
+    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
+    
+    # Calculate global bounds for shape
+    shp_xlen = bounds[2] - bounds[0]
+    shp_ylen = bounds[3] - bounds[1]
+    shp_xmin = bounds[0]
+    shp_ymin = bounds[1]
+    
+    # Iterate through each polygon and assign its most common color
+    for i, _ in df.iterrows():
+        
+        # Get current polygon
+        poly = df.at[i, 'geometry']
+        
+        # Set color for census block
+        df.at[i, 'color'] = most_common_color(poly, img_arr, shp_xmin, \
+             shp_xlen, shp_ymin, shp_ylen, sample_limit)
+            
+    # Assign each polygon with a certain color a district index
+    for i, color in enumerate(df['color'].unique()):
+        df.loc[df['color'] == color, 'region'] = i
+    
+    # Get unique values in the df ID column
+    prec_id = list(df.region.unique())
+    
+    # Initialize the precinct dataframe, which will eventually be exported
+    # as the precinct shapefile
+    df_prec = pd.DataFrame(columns=['region', 'geometry'])
+    
+    # Iterate through all of the precinct IDs and set geometry of df_prec with
+    # cascaded union
+    for i in range(len(prec_id)):
+        df_poly = df[df['region'] == prec_id[i]]
+        polys = list(df_poly['geometry'])
+        df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
+        df_prec.at[i, 'region'] = prec_id[i]
+        
+    # Split noncontiguous precincts
+    df_prec = split_noncontiguous(df_prec)
+
+    # Merge precincts fully contained in other precincts
+    df_prec = merge_fully_contained(df_prec)
+
+    # Merge precincts until we have the correct number of precincts
+    df_prec = merge_to_right_number(df_prec, num_regions)
+    
+    # Convert precinct dataframe into a geodataframe
+    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
+
+    # Assign census blocks to regions
+    df = majority_areal_interpolation(df, df_prec, [('region', 'region', 0)])
+    
+    # Save census block shapefile with updated attribute table
+    save_shapefile(df, shape_path, cols_to_exclude=['color'])
+    
+    # Save precinct shapefile    
+    save_shapefile(df_prec, out_path, ['neighbors'])
+        
+    return len(df)
