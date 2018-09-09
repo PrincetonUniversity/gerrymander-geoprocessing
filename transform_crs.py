@@ -18,7 +18,7 @@ try:
     csv_list = []
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
 
-    # Initialize out_df, which contains the results of the difference
+    # Initialize out_df, which contains the batching output
     new_cols = ['Result', 'Locality Name']
     out_df = pd.DataFrame(columns=new_cols)
     
@@ -31,7 +31,7 @@ try:
             local = csv_df.at[i, 'Locality Name']
             print(local)
             # Get path and CRS for the first shape
-            path_shape = direc_path + '/' + local + '/' + \
+            path_shape = direc_path + '/' + local + '/' + 
                             csv_df.at[i, 'File Name']
             new_crs = csv_df.at[i, 'CRS']
             
