@@ -1,6 +1,5 @@
 import pandas as pd
 import geopandas as gpd
-import os
 import helper_tools as ht
 
 # Get path to our CSV file
@@ -9,7 +8,6 @@ csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the difference
 try:
-    
     # Import Google Drive path
     direc_path = ht.read_one_csv_elem(csv_path)
     
@@ -31,7 +29,7 @@ try:
             local = csv_df.at[i, 'Locality Name']
             print(local)
             # Get path and CRS for the first shape
-            path_shape = direc_path + '/' + local + '/' + 
+            path_shape = direc_path + '/' + local + '/' + \
                             csv_df.at[i, 'File Name']
             new_crs = csv_df.at[i, 'CRS']
             
