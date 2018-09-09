@@ -42,7 +42,7 @@ try:
             
             # Generate precinct shapefile and add corresponding precinct
             # index to the attribute field of the census block shapefile
-            result = ht.generate_precinct(local, census_path, out_path)
+            result = ht.generate_precinct_shp(local, census_path, out_path)
             
             # Batch output
             row = len(out_df)
