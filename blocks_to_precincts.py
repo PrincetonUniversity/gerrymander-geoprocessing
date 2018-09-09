@@ -12,7 +12,7 @@ try:
     direc_path = ht.read_one_csv_elem(csv_path)
     
     # Import table from CSV into pandas df
-    csv_col = ['Locality', 'Census Path', 'Out Path']
+    csv_col = ['Locality', 'Census Path', 'Out Path', 'Precinct_Col']
     csv_list = []
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
 
@@ -30,6 +30,7 @@ try:
             
             # Set unique variables for the current county
             local = csv_df.at[i, 'Locality']
+            prec_col = csv_df.at[i, 'Precinct_col']
 
             # set census and out path
             census_path = ht.default_path(csv_df.at[i, 'Census Path'], \
@@ -42,7 +43,8 @@ try:
             
             # Generate precinct shapefile and add corresponding precinct
             # index to the attribute field of the census block shapefile
-            result = ht.generate_precinct_shp(local, census_path, out_path)
+            result = ht.generate_precinct_shp(local, census_path, out_path,\
+                                              prec_col)
             
             # Batch output
             row = len(out_df)
