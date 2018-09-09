@@ -1,18 +1,6 @@
 import pandas as pd
-import pysal as ps
-import numpy as np
 import geopandas as gpd
-import shapely as shp
-from shapely.geometry import MultiLineString
-from shapely.geometry import Point
-from shapely.geometry import LinearRing
-from shapely.geometry import LineString
-from shapely.geometry import Polygon
-import re
-import operator
-import pickle
 import os
-import shutil
 import helper_tools as ht
 
 # Define paths
