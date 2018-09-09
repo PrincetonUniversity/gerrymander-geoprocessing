@@ -1,8 +1,7 @@
 import pandas as pd
 import geopandas as gpd
-import os
 import shapely as shp
-import csv
+import helper_tools as ht
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/county_diff_received_shapefiles_BethuneHill.csv"
@@ -11,23 +10,21 @@ csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct 
 # results of the difference
 try:
     # Import Google Drive path
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        data = [r for r in reader]
-    direc_path = data[0][1]
+    direc_path = ht.read_one_csv_elem(csv_path)
+    
+    # Import table from CSV into pandas df
+    csv_col = ['Result', 'Locality Name', 'Percent Diff']
+    csv_list = []
+    csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
 
-    # Import table from CSV into pandas dataframe
-    name_list = ['Locality Name', 'Shape1', 'Shape2']
-    csv_df = pd.read_csv(csv_path, header=1, names=name_list)
-
-    # Initialize out_df, which contains the results of the difference
+    # Initialize out_df, which contains the batching output
     new_cols = ['Result', 'Locality Name', 'Percent Diff']
     out_df = pd.DataFrame(columns=new_cols)
     
     # Iterate through each county we are finding the difference for
     for i, _ in csv_df.iterrows():
         
-        # Create shapefile out of precincts
+        # Create geometry for entire locality
         try:
             # Define the locality
             local = csv_df.at[i, 'Locality Name']
@@ -47,11 +44,8 @@ try:
                 path_shape2 = direc_path + '/' + local + '/' + \
                             csv_df.at[i, 'Shape2']
         
-            # Read in first shape                
-            # Delete CPG file if it exists
-            cpg_path1 = ''.join(path_shape1.split('.')[:-1]) + '.cpg'
-            if os.path.exists(cpg_path1):
-                os.remove(cpg_path1)
+            # Read in first shape
+            ht.delete_cpg(path_shape1)
             df1 = gpd.read_file(path_shape1)
             
             # Find union of first shape
@@ -59,10 +53,7 @@ try:
             poly1 = shp.ops.cascaded_union(polys1)
             
             # Read in second shape
-            # Delete CPG file if it exists
-            cpg_path2 = ''.join(path_shape2.split('.')[:-1]) + '.cpg'
-            if os.path.exists(cpg_path2):
-                os.remove(cpg_path2)
+            ht.delete_cpg(path_shape2)
             df2 = gpd.read_file(path_shape2)
             
             # Find union of second shape
@@ -80,8 +71,7 @@ try:
             out_df.at[row, 'Percent Diff'] = perc_diff
         
         # Shapefile creation failed
-        except Exception as e:
-            print(e)
+        except:
             print('ERROR:' + csv_df.at[i, 'Locality'])
             row = len(out_df)
             out_df.at[row, 'Result'] = 'FAILURE'
