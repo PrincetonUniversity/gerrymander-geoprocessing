@@ -1,36 +1,32 @@
 import pandas as pd
 import geopandas as gpd
-import csv
 import time
 from geopy.geocoders import Nominatim
-import os
 import shapely as shp
 from shapely.geometry import Point
+import helper_tools as ht
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/precinct_guess_Bethune_Hill_small.csv"
-
+state = 'Virginia'
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
 try:
     # Import Google Drive path
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        data = [r for r in reader]
-    direc_path = data[0][1]
+    direc_path = ht.read_one_csv_elem(csv_path)
+    
+    # Import table from CSV into pandas df
+    csv_col = ['Locality', 'Precinct Name', 'Shape Path']
+    csv_list = ['Precinct Name']
+    csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
+
+    # Initialize out_df, which contains the batching output
+    new_cols = ['Result', 'Locality Name']
+    out_df = pd.DataFrame(columns=new_cols)
     
     # Set geolocator instance on Open Street Map server
     g = Nominatim(user_agent='my-application', timeout=10)
-    
-    # Import table from CSV into pandas dataframe
-    csv_df_names = ['Locality', 'Precinct Name', 'Shape Path']
-    csv_df = pd.read_csv(csv_path, header=1, names=csv_df_names)
-    
-    # Adjust strings delimited by commas into lists
-    list_col = ['Precinct Name']
-    for col in list_col:
-        csv_df[col] = csv_df[col].str.split(',')
-        
+
     # Iterate over every locality 
     for i, _ in csv_df.iterrows():
         
@@ -40,25 +36,15 @@ try:
             print('\n' + local)
             
             # Get the shapefile path
-            shape_path = csv_df.at[i, 'Shape Path']
-            
-            # Change census shapefile path and out folder if set to default
-            if shape_path == 1:
-                census_filename = local + '_precincts.shp'
-                shape_path = direc_path + '/' + local + '/' + \
-                                census_filename
-            
-            # Load in shapefile
-            # Delete CPG file if it exists
-            cpg_path = ''.join(shape_path.split('.')[:-1]) + '.cpg'
-            if os.path.exists(cpg_path):
-                os.remove(cpg_path)
+            shape_path = ht.default_path(csv_df.at[i, 'Shape Path'], local,\
+                                         direc_path)
             
             # read in census block shapefile
+            ht.delete_cpg(shape_path)
             df = gpd.read_file(shape_path)
             
             # initialize prec_geo and prec_merge columns to 0
-            df['prec_geo'] = pd.Series(dtype=object)
+            df['prec_geo'] = pd.Series(0, dtype=object)
             df['prec_guess'] = pd.Series(dtype=object)
             df['prec_geo'] = '0'
             
@@ -75,12 +61,12 @@ try:
                 # Skip if error occurs
                 try:
                     # get location
-                    loc_str = prec + ' ' + local + ' Virginia'
+                    loc_str = prec + ' ' + local + ' ' + state
                     location = g.geocode(loc_str)
                     
                     if location != None:
                         p = Point(location.longitude, location.latitude)
-                        # Pause one second for usage limits
+                        # Pause one second for Nominatim usage limits
                         time.sleep(1)
                         
                         # match location 
@@ -93,9 +79,8 @@ try:
                                 df.at[j, 'prec_geo'] == '0':
                                     df.at[j, 'prec_geo'] = prec
                                     used_prec.append(prec)
-                except Exception as e:
-                    print(e)
-                    print(prec)
+                except:
+                    print('ERROR ' + prec)
             
             # Set guess equal to geo
             df['prec_guess'] = df['prec_geo']
@@ -113,11 +98,10 @@ try:
             # Save shapefile
             df.to_file(shape_path)
             
-        except Exception as e:
-            print(e)
+        except:
+            print('ERROR: ' + local)
 
 # CSV file could not be read in or exported
-except Exception as e:
-    print(e)
+except:
     print('ERROR: Reading in CSV file')
     
