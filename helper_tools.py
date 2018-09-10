@@ -162,7 +162,11 @@ def get_shared_perims(df):
     shared perimeters.
     
     Arguments:
-        df:'''
+        df: geodataframe
+    
+    Output:
+        geodataframe, with shared perimeter length in its dictionary
+    '''
     df = real_rook_contiguity(df, struct_type='dict')
     
     # iterate over all precincts to set shared_perims
@@ -202,7 +206,8 @@ def reduce_colors(img, num_colors):
         num_colors: number of distinct colors in output file
         
     Output:
-        Modified image with reduced number of distinct RGB values'''
+        Modified image with reduced number of distinct RGB values
+    '''
     
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
     return conv_img.convert('RGB')
@@ -323,8 +328,9 @@ def pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, img_xmin, img_xlen,
         img_ymin: minimum y coordinate in img_arr
         img_ylen: maximum - minimum y coordinate in img_arr
         
-    Output: pixel value (array)
-        '''
+    Output: 
+        pixel value (array)
+    '''
     # coordinate transform calculation, where floor is used to prevent indices 
     # from going out of bounds (also this is proper practice for the accuracy 
     # of the transform)
@@ -337,7 +343,11 @@ def isBlack(color):
     ''' Returns True iff all 3 RGB values are less than 25.
     
     Arguments: 
-        color: a list whose first 3 elements are RGB.'''
+        color: a list whose first 3 elements are RGB.
+    
+    Output:
+        True if black, false otherwise
+    '''
         
     return (color[0] < 25 and color[1] < 25 and color[2] < 25)
 
@@ -349,7 +359,8 @@ def random_pt_in_triangle(triangle):
     Argument:
         triangle: Shapely polygon
         
-    Output: Shapely Point drawn randomly from inside triangle'''
+    Output:
+        Shapely Point drawn randomly from inside triangle'''
     
     # get list of vertices (cut off last element; first point is repeated)
     vertices = np.asarray(triangle.boundary.coords)[:3]
@@ -481,7 +492,8 @@ def split_noncontiguous(df, cols_to_copy=[]):
         cols_to_copy: columns from non-contiguous region to copy over to 
             all parts that were split off
     
-    Output: df with no noncontiguous geometries
+    Output:
+        df with no noncontiguous geometries
     '''
     
      # Initialize indexes to drop
@@ -520,6 +532,9 @@ def fraction_shared_perim(nbrs, indices, perim):
         nbrs: dictionary with keys as neighbor indices, values as shared perims
         indices: indices for which we care about the fraction shared
         perim: perimeter of shape
+    
+    Output:
+        fraction of perimter assigned
     '''
     # calcluate total perimeter shared with shapes at indices
     shared_perim = sum([nbrs[key] for key in nbrs if key in indices])
@@ -530,12 +545,18 @@ def merge_geometries(df, indices_to_merge, cols_to_add=[]):
     '''
     Merges the geometries for given indices in a geodataframe into another
     geometry in the dataframe. Merges geometries by longest shared perimeter.
+    Merges in order of most assigned perimeter (if geometry A has 50% of its
+    perimeter assigned and geometry B has 40% of its area assigned, geometry
+    A will be assigned before geometry B)
     
     Arguments:
         df: geodataframe
         indices_to_merge: indices of geometries that we want to merge into 
             some other geometry
         cols_to_add: columns in df to add as we merge (e.g. population)
+        
+    Output:
+        geodataframe with merged geometries
     '''
     # Get neighbors dicts with shared_perims
     df = get_shared_perims(df)
@@ -580,7 +601,6 @@ def merge_geometries(df, indices_to_merge, cols_to_add=[]):
         for key in list(cur_prec):
             df.at[key, 'neighbors'].pop(i)
             
-            ##-----------------------------------------------------------------
             # get perimeter length for key in merge and set in 
             # neighbor list
             key_dist = df.at[ix, 'neighbors'][key]
@@ -598,6 +618,13 @@ def merge_to_right_number(df, num_regions):
     ''' Decreases the number of attributes in a dataframe to a fixed number by
     merging the smallest geometries into the neighbor with which it shares the
     longest border.  Also creates 'region' field.
+    
+    Arguments:
+        df: geodataframe to reduce geometries of
+        num_regions: how many geometries to reduce to
+        
+    Output:
+        reduced geodataframe
     '''
     # reset index for df
     df = df.reset_index(drop=True)
@@ -610,7 +637,7 @@ def merge_to_right_number(df, num_regions):
         df.at[i, 'area'] = df.at[i, 'geometry'].area
     arr = np.array(df['area'])
     
-    precincts_to_merge = arr.argsort()[ : -num_regions]
+    precincts_to_merge = arr.argsort()[:-num_regions]
     
     # merge precincts_to_merge
     df = merge_geometries(df, precincts_to_merge)
@@ -633,8 +660,6 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
         file_str: string file path
         cols_to_exclude: columns from df to be excluded from attribute table
             (possibly because it cannot be written, like an array)
-            
-    Output: 1
     '''
     # make temporary dataframe so we can exclude columns
     df = df.drop(columns=cols_to_exclude)
@@ -674,15 +699,13 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
     else:
         df.to_file(file_path)
     
-    return 1
-    
 def delete_cpg(path):
     '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
     encodes a shapefile and incorrectly saves the CPG. Before running most
     of the scripts, it is beneficially to ensure an encoding error does throw
     an error
     
-    Argument
+    Argument:
         path: path to a file that has the same name as the .cpg file. Usually
         the shapefile
     '''
@@ -700,6 +723,9 @@ def default_path(path, local, direc_path):
         path: current path to the shapefile. Might be a default keyword
         local: name of the locality, which will be the parent directory
         direc_path: directory path to all of the locality folders
+        
+    Output:
+        Path to a default file or the original file path
     '''
     
     if path == 'census_block':
@@ -723,11 +749,14 @@ def set_CRS(gdf, new_crs='epsg:4269'):
     ''' This function will set a coordinate reference system (CRS) for a a 
     geodataframe
     
-    Arguments
+    Arguments:
         gdf: This is the geodataframe that we are converting to a different
                 coordinate reference systems
         new_crs: This is the CRS we are converting to. This is usually in the
         form epsg:####
+        
+    Output:
+        geodataframe with a converted CRS
     '''
     
     # If no CRS set, set it with .crs
@@ -747,6 +776,9 @@ def read_one_csv_elem(csv_path, row=0, col=1):
         csv_path: path to read in the csv_file
         row: row of the text to read in
         col: col of the text to read in
+    
+    Output:
+        Desired element in the csv
     '''
     with open(csv_path) as f:
         reader = csv.reader(f)
@@ -756,11 +788,14 @@ def read_one_csv_elem(csv_path, row=0, col=1):
 def read_csv_to_df(csv_path, head, col_names, list_cols):
     ''' Read in a csv for batching for other processes
     
-    Arguments
+    Arguments:
         csv_path: path to read in the csv file
         head: the header row to read in the csv as a pandas df
         col_names: list column names in order as headers for the pandas df
         list_cols: columns to convert to lists from comma delimited strings
+    
+    Output:
+        The csv dataframe to run batching process through
     '''
     # Read in csv as df
     csv_df = pd.read_csv(csv_path, header=head, names=col_names)
@@ -786,7 +821,8 @@ def majority_areal_interpolation(df_to, df_from, adjust_cols):
         to apply such as upper/lower/title case [(df_to_col1, df_from_col1, 
         format_col1), (df_to_col2, df_from_col2, format_col2),...]
             
-    Output: To dataframe with the value interpolated'''
+    Output: To dataframe with the value interpolated
+    '''
 
     # Read in input dataframe
     df_from.index = df_from.index.astype(int)
@@ -907,7 +943,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
         
     Output:
         Number of census blocks in the county
-        '''        
+    '''        
     # Convert image to array, color reducing if specified
     img = Image.open(img_path)
     if colors > 0:
@@ -948,7 +984,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     for i, color in enumerate(df['color'].unique()):
         df.loc[df['color'] == color, 'region'] = i
     
-    # Get unique values in the df ID column
+    # Get unique values in the df precinct column
     prec_id = list(df.region.unique())
     
     # Initialize the precinct dataframe, which will eventually be exported
@@ -956,12 +992,12 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     df_prec = pd.DataFrame(columns=['region', 'geometry'])
     
     # Iterate through all of the precinct IDs and set geometry of df_prec with
-    # cascaded union
-    for i in range(len(prec_id)):
-        df_poly = df[df['region'] == prec_id[i]]
+    # cascaded union        
+    for i, elem in enumerate(prec_id):
+        df_poly = df[df['region'] == elem]
         polys = list(df_poly['geometry'])
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
-        df_prec.at[i, 'region'] = prec_id[i]
+        df_prec.at[i, 'region'] = elem
         
     # Split noncontiguous precincts
     df_prec = split_noncontiguous(df_prec)
@@ -989,7 +1025,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
 def generate_precinct_shp(local, shape_path, out_path, prec_col):    
     ''' Generates the final precinct level shapefile from census block data
     and an update "precinct" region attribute column. Also gives the locality
-    as an attribute column for each precinct
+    as an attribute column for each precincst
     
     Arguments:
         local: name of the locality
@@ -999,7 +1035,7 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
         
     Output:
         Number of census blocks in the county
-        '''        
+    '''        
     # read in census block shapefile
     delete_cpg(shape_path)
     df = gpd.read_file(shape_path)
@@ -1010,7 +1046,7 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
     # Create dataframe for precinct shapefile
     df_prec = pd.DataFrame(columns=['precinct', 'geometry', 'locality'])
 
-    # Iterate through all of the 'precinct' and set geometry of df_prec with
+    # Iterate through all of the prec_col and set geometry of df_prec with
     # cascaded union
     for i, elem in enumerate(prec_names):
         df_poly = df[df[prec_col] == elem]
@@ -1057,4 +1093,91 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
     save_shapefile(df_prec, out_path)
         
+    return len(df)
+
+def join_list(l, delimiter):
+    ''' Takes list and returns a string containing the elements of the list
+    delimited by delimiter
+    
+    Arguments:
+        l: list of elements to combine into a string
+        delimiter
+        
+    Output:
+        comma delimited string containing list elements
+    '''
+    return delimiter.join(map(str, l))
+
+def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
+    ''' Generates a precinct level shapefile from census block data and a
+    designated attribute column generated from assigning blocks in GIS. Also 
+    updates the attribute table in the census block shapefile to have a 
+    precinct value.
+    
+    Arguments:
+        local: name of the locality
+        shape_path: full path to the census block shapefile
+        out_folder: directory that precinct level shapefile will be saved in
+        prec_col: the column in the census block shapefile that denotes which
+        precinct the block belongs to
+        
+    Output:
+        Number of census blocks in the county
+    ''' 
+    # read in census block shapefile
+    delete_cpg(shape_path)
+    df = gpd.read_file(shape_path)
+    
+     # Get unique values in the df region column
+    prec_id = list(df.prec_col.unique())
+    
+    # Check if there are census blocks not assigned to a prec_col
+    if np.isnan(prec_id).any():
+        # set num_regions to one less to acount for nan
+        num_regions = len(prec_id) - 1
+        
+        # Assign blocks with nan prec_col to a dummy id
+        for i, _ in df[df[prec_col].isnull()]:
+            df.at[i, prec_col] = 'dummy_id' + str(i)
+        
+    # Every block is assigned and we do not need to account for nan in prec_id
+    else:
+        num_regions = len(prec_id)
+    
+    # reset the prec_id list
+    prec_id = list(df.prec_col.unique())
+    
+    # Initialize the precinct dataframe, which will eventually be exported
+    # as the precinct shapefile
+    df_prec = pd.DataFrame(columns=[prec_col, 'geometry'])
+    
+    # Iterate through all of the precinct IDs and set geometry of df_prec with
+    # cascaded union        
+    for i, elem in enumerate(prec_id):
+        df_poly = df[df[prec_col] == elem]
+        polys = list(df_poly['geometry'])
+        df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
+        df_prec.at[i, prec_col] = elem
+        
+    # Split noncontiguous precincts
+    df_prec = split_noncontiguous(df_prec)
+
+    # Merge precincts fully contained in other precincts
+    df_prec = merge_fully_contained(df_prec)
+
+    # Merge precincts until we have the correct number of precincts
+    df_prec = merge_to_right_number(df_prec, num_regions)
+    
+    # Convert precinct dataframe into a geodataframe
+    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
+
+    # Assign census blocks to regions
+    df = majority_areal_interpolation(df, df_prec, [(prec_col, prec_col, 0)])
+    
+    # Save census block shapefile with updated attribute table
+    save_shapefile(df, shape_path, cols_to_exclude=['color'])
+    
+    # Save precinct shapefile    
+    save_shapefile(df_prec, out_path, ['neighbors'])
+
     return len(df)
