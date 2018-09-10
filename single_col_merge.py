@@ -1,57 +1,31 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 17 11:19:58 2018
-
-@author: conno
-"""
-
 import pandas as pd
 import geopandas as gpd
-import os
-import csv
-
-def join_list(l, delimiter):
-    ''' Takes list and returns a string containing the elements of the list
-    delimited by delimiter
-    
-    Arguments
-    l: list of elements to combine into a string
-    delimiter'''
-    return delimiter.join(map(str, l))
+import helper_tools as ht
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/match_prec_num_to_name.csv"
 
 save_shp_bool = False
 convert_float_to_int_bool = True
-# Initial try and except to catch improper csv_path or error exporting the
-# results of the difference
+
 try:
-    
     # Import Google Drive path
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        data = [r for r in reader]
-    direc_path = data[0][1]
-
-    # Import table from CSV into pandas dataframe
-    name_list = ['Locality Name', 'Path', 'Filename', 'Match Name', \
-                 'Match Val', 'Append Name', 'Append Val', 'Merge Type']
-    csv_df = pd.read_csv(csv_path, header=1, names=name_list)
-
-    # Initialize out_df, which contains the results of the difference
-    new_cols = ['Result', 'Locality Name', 'Notes']
-    out_df = pd.DataFrame(columns=new_cols)
+    direc_path = ht.read_one_csv_elem(csv_path)
     
-    # Adjust strings delimited by commas into lists
-    list_col = ['Match Val', 'Append Val']
-    for col in list_col:
-        csv_df[col] = csv_df[col].str.split(',')
+    # Import table from CSV into pandas df
+    csv_col = ['Locality Name', 'Path', 'Filename', 'Match Name', \
+                 'Match Val', 'Append Name', 'Append Val', 'Merge Type']
+    csv_list = ['Match Val', 'Append Val']
+    csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
+
+    # Initialize out_df, which contains the batching output
+    new_cols = ['Result', 'Locality Name']
+    out_df = pd.DataFrame(columns=new_cols)
     
     # Iterate through each county we are finding the difference for
     for i, _ in csv_df.iterrows():
         
-        # Convert CRS
+        # 
         try:
             # Define the locality
             local = csv_df.at[i, 'Locality Name']
@@ -60,15 +34,13 @@ try:
             # Get path
             path_shape = csv_df.at[i, 'Path']
             
-            # Get path and split
+            # If path is default 1 then use Filename
             if path_shape == 1:
                 path_shape = direc_path + '/' + local + '/' + \
                                 csv_df.at[i, 'Filename']
                                                 
             # Read in shapefile
-            cpg_path = ''.join(path_shape.split('.')[:-1]) + '.cpg'
-            if os.path.exists(cpg_path):
-                os.remove(cpg_path)
+            ht.delete_cpg(path_shape)
             df = gpd.read_file(path_shape)
 
             # get match and append names. Get a copy so we can match our values
@@ -112,7 +84,7 @@ try:
             if len(match_miss) == 0:
                 match_miss_str = 'none'
             else:
-                match_miss_str = join_list(match_miss, ',')
+                match_miss_str = ht.join_list(match_miss, ',')
 
             append_miss = list(e_df[e_df[orig_match_name].isnull()\
                                     ][match_name])
@@ -120,13 +92,13 @@ try:
             if len(append_miss) == 0:
                 append_miss_str = 'none'
             else:
-                append_miss_str = join_list(append_miss, ',')
+                append_miss_str = ht.join_list(append_miss, ',')
             # Perform Merge. Delete copy column. Save
             if save_shp_bool:
                 df = df.merge(df_merge, on=match_name, how=merge_how)
-                df = df.drop(columns=[match_name])
-                df.to_file(path_shape)
+                ht.save_shapefile(df, path_shape, [match_name])
 
+                
             # Place Results and Notes in out_df
             row = len(out_df)
             out_df.at[row, 'Result'] = 'SUCCESS'
@@ -136,8 +108,7 @@ try:
             out_df.at[row, 'Notes'] = note
         
         # Shapefile creation failed
-        except Exception as e:
-            print(e)
+        except:
             print('ERROR:' + csv_df.at[i, 'Locality'])
             row = len(out_df)
             out_df.at[row, 'Result'] = 'FAILURE'
