@@ -4,13 +4,9 @@ import geopandas as gpd
 import math
 import censusbatchgeocoder
 import shapely as shp
-from collections import Counter
 import warnings
 warnings.filterwarnings("ignore")
 import helper_tools as ht
-
-# test overall timing
-total_start = time.time()
 
 # import original CSV voter file as DataFrame
 raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/Voter Roll/VINTON_full.csv"
@@ -122,7 +118,7 @@ df_shp = df_shp.merge(df, how='left', left_on=shp_merge_col, right_on='GEOID')
 df_shp = df_shp.where((pd.notnull(df_shp)), None)
 
 # Save original merge precincts
-df_shp['merge_prec'] = df_shp['precinct']
+df_shp['orig_prec'] = df_shp['precinct']
 
 # Replace None precinct with a unique character
 for i, _ in df_shp.iterrows():
@@ -142,23 +138,14 @@ for i, elem in enumerate(prec_name):
     polys = list(df_poly['geometry'])
     df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
     df_prec.at[i, 'precinct'] = elem
-        
-#%%
-    
-###############################################################################
-###### Combine Precincts By Shared Perimeter ##################################
-###############################################################################
+
 start_combine =  time.time()
+
 # reset index
 df_prec = df_prec.reset_index(drop=True)
 
 # get rook contiguity and calculate shared perims
-df_prec = real_rook_contiguity(df_prec, 'dict')
-df_prec = get_shared_perims(df_prec)
-
-
-
-# get rook contiguity
+df_prec = ht.get_shared_perims(df_prec)
 
 # get list of precinct indexes to merge
 precincts_to_merge = []
@@ -166,43 +153,9 @@ for i, _ in df_prec.iterrows():
     if df_prec.at[i, 'precinct'].split('_')[0] == 'None':
         precincts_to_merge.append(i)
         
-# Iterate through indexes of precincts to merge
-for i in precincts_to_merge:
+# merge geometries
+df_prec = ht.merge_geometries(df_prec, precincts_to_merge)
 
-    # update neighbors and shared_perims
-    cur_prec = df_prec.at[i, 'neighbors']
-    ix = max(cur_prec, key=cur_prec.get)
-    merge_prec = df_prec.at[ix, 'neighbors']
-
-    # merge dictionaries
-    merge_prec = Counter(merge_prec) + Counter(cur_prec)
-
-    # remove key to itself
-    merge_prec.pop(ix)
-
-    # set neighbor dictionary in dataframe
-    df_prec.at[ix, 'neighbors'] = merge_prec
-    
-    # merge geometry
-    df_prec.at[ix, 'geometry'] = df_prec.at[ix, 'geometry'].union\
-        (df_prec.at[i, 'geometry'])
-    
-    # delete neighbor reference to i and add reference for merge to key
-    for key in list(cur_prec):
-        df_prec.at[key, 'neighbors'].pop(i)
-        
-        # get perimeter length for key in merge and set in neighbor list
-        key_dist = df_prec.at[ix, 'neighbors'][key]
-        df_prec.at[key, 'neighbors'][ix] = key_dist
-    
-# delete all merged precincts
-df_prec = df_prec.drop(precincts_to_merge)
-    
-# reset index for df_prec
-df_prec = df_prec.reset_index(drop=True)
-    
-print('How long to combine precinct: ' + str(time.time() - start_combine))
-       
 # Save census block shapefile
 block_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties/Vinton County/Vinton_County_block_smooth_perimeters.shp"
 prec_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties/Vinton County/Vinton_County_precinct_smooth_perimeters.shp"
