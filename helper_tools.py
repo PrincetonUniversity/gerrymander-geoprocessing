@@ -662,7 +662,14 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
             (possibly because it cannot be written, like an array)
     '''
     # make temporary dataframe so we can exclude columns
-    df = df.drop(columns=cols_to_exclude)
+    actual_cols_to_exclude = []
+    
+    # Check to make sure drop columns are in dataframe
+    for elem in cols_to_exclude:
+        if elem in df.columns:
+            actual_cols_to_exclude.append(elem)
+            
+    df = df.drop(columns=actual_cols_to_exclude)
     
     # Attempt to fix object types in dataframe by converting to float if
     # possible
