@@ -203,27 +203,12 @@ df_prec = df_prec.reset_index(drop=True)
     
 print('How long to combine precinct: ' + str(time.time() - start_combine))
        
-
-#%%
-###############################################################################
-###### CREATE PRECINCT SHAPEFILE AND SAVE #####################################
-###############################################################################
-
 # Save census block shapefile
 block_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties/Vinton County/Vinton_County_block_smooth_perimeters.shp"
 prec_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/Ohio Counties/Vinton County/Vinton_County_precinct_smooth_perimeters.shp"
 
-# generate precinct shapefile and save
-ht.majority_areal_interpolation(local, block_path, prec_path, 'precinct')  
-
-# 
-df = majority_areal_interpolation(df, df_prec, [('precinct', 'precinct', 0)])
-    
-
-# Assign precincts to census blocks. Save precinct names for GIS
-df_prec['precinct_id'] = df_prec['precinct']
-df_prec = df_prec.set_index('precinct_id')
-df_shp = assign_blocks(df_shp, df_prec, 'precinct')
+# Save precinct assignments down to the block
+df = ht.majority_areal_interpolation(df, df_prec, [('precinct', 'precinct', 0)])
 
 # Save shapefiles
 ht.save_shapefile(df, block_path, ['neighbors'])
