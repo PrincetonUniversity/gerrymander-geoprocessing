@@ -21,14 +21,14 @@ def main():
     # intialize dictionary that points to dataframe of reduced precinct names
     df_dict = {} 
 
-    in_df = pd.read_csv(csv_path, header=0, names=name_list, dtype=str)
+    csv_df = pd.read_csv(csv_path, header=0, names=name_list, dtype=str)
 
     # Adjust strings delimited by commas into lists
     for col in list_col:
-        in_df[col] = in_df[col].str.split(',')
+        csv_df[col] = csv_df[col].str.split(',')
      
     # Clean compare lists
-    in_df = in_df.fillna(0)
+    csv_df = csv_df.fillna(0)
 
     
     # Initialize Changes Dataframe
@@ -46,23 +46,23 @@ def main():
     change_df = pd.DataFrame(columns=cols, dtype=str)
         
     # Create precinct name dataframe and assign to name in dictionary
-    for i, _ in in_df.iterrows():
-        df_dict[str(in_df.at[i, 'Name'])] = create_prec_name_df(
-               in_df.at[i, 'Path'], in_df.at[i, 'Join Cols'],
-               in_df.at[i, 'Join Delim'], in_df.at[i, 'Split Cols'],
-               in_df.at[i, 'Split Index'], in_df.at[i, 'Split Delim'], 
-               in_df.at[i, 'Remove Substr'])
+    for i, _ in csv_df.iterrows():
+        df_dict[str(csv_df.at[i, 'Name'])] = create_prec_name_df(
+               csv_df.at[i, 'Path'], csv_df.at[i, 'Join Cols'],
+               csv_df.at[i, 'Join Delim'], csv_df.at[i, 'Split Cols'],
+               csv_df.at[i, 'Split Index'], csv_df.at[i, 'Split Delim'], 
+               csv_df.at[i, 'Remove Substr'])
         
-        if int(in_df.at[i, 'Output']):
-            csv_out_path = join_list(csv_path.split('.')[:-1], '') +\
-                            str(in_df.at[i, 'Name']) + '.csv'
-            df_dict[str(in_df.at[i, 'Name'])].to_csv(csv_out_path)
+        if int(csv_df.at[i, 'Output']):
+            csv_out_path = join_list(csv_path.split('.')[:-1], '') + ' ' + \
+                            str(csv_df.at[i, 'Name']) + '.csv'
+            df_dict[str(csv_df.at[i, 'Name'])].to_csv(csv_out_path)
         
     # Add to error dataframe
-    for i, _ in in_df.iterrows():
-        if in_df.at[i, 'Compare']:
-            for compare_name in in_df.at[i, 'Compare']:
-                name1 = str(in_df.at[i, 'Name'])
+    for i, _ in csv_df.iterrows():
+        if csv_df.at[i, 'Compare']:
+            for compare_name in csv_df.at[i, 'Compare']:
+                name1 = str(csv_df.at[i, 'Name'])
                 name2 = compare_name
                 c_df = prec_matching_error_df(df_dict[name1], df_dict[name2],\
                                               name1, name2)
@@ -245,10 +245,10 @@ def generate_df_from_str_list(delimited_list, col_names, delimiter):
     cols = ['original'] + col_names
     df = pd.DataFrame(columns=cols, dtype=str)
     df['original'] =  delimited_list
-    
+
     # print errors
     for i in delimited_list:
-        if len(i.split(delimiter)) < 3:
+        if len(i.split(delimiter)) > 3:
             print(i)
     
     # set other columns in dataframe. ALso remove whitespace before and after
