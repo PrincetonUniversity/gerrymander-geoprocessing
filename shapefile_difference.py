@@ -4,16 +4,15 @@ import shapely as shp
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/county_diff_received_shapefiles_BethuneHill.csv"
-
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/shapefile_difference_Warren_County_09_13_18.csv"
+#%%
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the difference
 try:
     # Import Google Drive path
     direc_path = ht.read_one_csv_elem(csv_path)
-    
     # Import table from CSV into pandas df
-    csv_col = ['Result', 'Locality Name', 'Percent Diff']
+    csv_col = ['Locality Name', 'Shape1', 'Shape2']
     csv_list = []
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
 
@@ -29,6 +28,7 @@ try:
             # Define the locality
             local = csv_df.at[i, 'Locality Name']
             print(local)
+
             # Get path for the first shape
             path_shape1 = direc_path + '/' + local + '/' + \
                             csv_df.at[i, 'Shape1']
@@ -43,7 +43,7 @@ try:
             else:
                 path_shape2 = direc_path + '/' + local + '/' + \
                             csv_df.at[i, 'Shape2']
-        
+
             # Read in first shape
             ht.delete_cpg(path_shape1)
             df1 = gpd.read_file(path_shape1)

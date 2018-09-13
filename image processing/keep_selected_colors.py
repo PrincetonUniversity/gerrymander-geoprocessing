@@ -5,19 +5,6 @@ black (0,0,0)'''
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
-# Get the image path
-# Ask if you want to reduce the number of colors HIGHLY Recommended
-# Convert with boolean initialized at top
-# extension to save as.'bmp' recommended would be at top
-# output path to save as
-# Reduce and convert if boolean is set to true
-# get colors in converted image
-# display img in ipython console for user to evaluate
-# print out the different colors in the current picture
-# ask the user to input the numbers of colors too keep
-# remove colors not in this slist
-# convert array to image
-# save in paht as desired
 
 # Input and output paths for image being manipulated
 img_path = ''
