@@ -1,218 +1,119 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jul 27 04:17:02 2018
-
-@author: conno
-"""
-
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
-from matplotlib.pyplot import imshow
-from queue import *
+from tqdm import tqdm
 
-
-
-img_path_hampton = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/No Color/Hampton County Test Image Cropped.jpg"
-img_path_grayson = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/No Color/Grayson County Test Image.PNG"
-img_path_covington = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/No Color/Covington City Test Image.tif"
-
-img_path_goochland = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Virginia_Digitizing/Auto/No Color/Goochland_original.PNG"
-img_path_amherst = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Amherst County/Amherst Screenshot Cropped.png"
-img_path_russell ="G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Russell County/Capture.PNG"
-img_path_alleghany = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/Alleghany Screenshot.PNG"
-img_path_hanover = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Hanover County/0001.png"
-
-img_path = img_path_hanover
-
-N = 15
-# Convert image to array
-img = Image.open(img_path)
-img_arr = np.asarray(img)
-
-conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = N)
-
-back_conv_img = conv_img.convert('RGB')
-back_arr = np.asarray(back_conv_img)
-
-colors = [elem[1] for elem in back_conv_img.getcolors()]
-
-#%%
-
-for i, elem in enumerate(colors):
-    print('\n\nColor ' + str(i))
-    im = Image.new('RGB', (40, 40), color=elem)
-    display(im)
-    #imshow(np.asarray(im))
-    
-# Enter the color(s) that represent the border
-boundary_color_str = input('Enter the numbers of the colors that make up the\
-boundary (separated by spaces if multiple): ')
-
-boundary_color_list = [int(elem) for elem in boundary_color_str.split()]
-
-boundary_colors = [colors[elem] for elem in boundary_color_list]
-    
-#boundary_colors = [list(colors[9])]
-
-#%%
-
-# make back_arr writeable
-back_arr.setflags(write=1)
-
-# Convert to black and white image
-black = (0,0,0)
-white = (255,255,255)
-
-
-
-import time
-start = time.time()
-current = start
-for y in range(back_conv_img.size[0]):
-    for x in range(back_conv_img.size[1]):
-        boundary = False
-        for boundary_color in boundary_colors:
-            if list(back_arr[x][y]) == list(boundary_color):
-                boundary = True
-                
-        # Change color of pixel
-        if boundary:
-            back_arr[x][y] = black
-        else:
-            back_arr[x][y] = white
-            
-    if y % 100 ==0:
-        print(y)
-        print(time.time() - current)
-        current= time.time()
-
-
-binary_img = Image.fromarray(back_arr)
-
-#%%
-binary_img.save('./alleghany_original_black_white2.bmp')
-back_conv_img.save('./alleghany_back_convert2.jpg')
-
-print(time.time() - start)
-        
-#%%
-
-def flood_fill(img_arr, x, y, target_color, replace_color):
-    ''' This algorithm will run flood fill on an image'''
-    
-    # set flags to allow editing of img_arr
-    img_arr.setflags(write=1)
-    
-    pixel_color = list(img_arr[x][y])
-    target_color = list(target_color)
-    replace_color =  list(replace_color)
-    
-    # Nothing to be done if target color is the replace color
-    if target_color == replace_color:
-        return 0 
-    
-    # Nothing to be done if pixel does not have the target color
-    elif pixel_color != target_color:
-        return 0 
-    
-    else:
-        # Set pixel color
-        img_arr[x][y] = replace_color
-        
-        # Initialize queue to have a list containing x, y
-        q = Queue(maxsize=0)
-        q.put([x,y])
-        
-        count = 0
-        while not q.empty():
-            
-            # pop set of coordinates from front of queue
-            n = q.get()
-            count += 1
-            # Above
-            if y > 0:
-                if list(img_arr[n[0], n[1] - 1]) == target_color:
-                    img_arr[n[0], n[1] - 1] = replace_color
-                    q.put([n[0], n[1] - 1])
-            
-            # Below
-            if y < len(img_arr) - 1:
-                    img_arr[n[0], n[1] + 1] = replace_color
-                    q.put([n[0], n[1] + 1])       
-                    
-            # Left
-            if x > 0:
-                    img_arr[n[0] - 1, n[1]] = replace_color
-                    q.put([n[0] - 1, n[1]])            
-            # Right
-            if x < len(img_arr[y]) - 1:
-                    img_arr[n[0] + 1, n[1]] = replace_color
-                    q.put([n[0] + 1, n[1]])        
-        # return that a change occurred
-        return 1
-    
-    
 def random_rgb(used_colors=[]):
-    ''' This function will return a random rgb tuple that is not in the list
+    ''' This function will return a random rgb list that is not in the list
     entered into the function
     
     Arguments:
-        used colors is a list of rgb values that should not be selected'''
+        used colors is a list of rgb values that should not be selected. Takes
+        the form [[0,0,0],[255,0,0]]
+    '''
     color_used = True
     
     # Get random colors until we get a number not in used colors
     while color_used:
         rgb = list(np.random.choice(range(256), size=3))
-        color_used = False
-        for color in used_colors:
-            if rgb == color:
-                color_used = True
-            
+        if rgb not in used_colors:
+            color_used = False
     return rgb
+
+# Load in image
+# give option to convert all colors NOT to flood fill to black
+# reduce colors
+# display image
+# print out color palettes 
+# let user selct which colors NOT to flood fill
+# Add selected colors too the list of used colors that will be inputted into the helper function
+# Iterate through all pixels
+    # If pixel value is not in used color
+        # apply flood fill will new color. Add new color to used_color
+    # If in don't flood fill possibly convert to black
+
+#####
+# helper function gets random RGB value that has not already been used
+
+# Input and output paths for image being manipulated
+img_path = ''
+img_path_out = ''
+
+# Define threshold for flood fill. This threshold is the 1-norm to determine
+# how far away RGB values can be to be considered the same color. 0 means
+# no tolerance
+# (1-norm: |r1[0] - r2[0]| + |r1[1] - r2[1]| + |r1[2] - r2[2]|)
+threshold = 0
+
+#######################
+img_path = 'C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/image processing/Auto Flood Fill Template.png'
+img_path_out  = './auto_flood_test1.png'
+######################
+
+# Do you want to reduce the number of colors in the current image 
+# (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
+# to reduce. Set to 0 if you do NOT want to reduce)
+reduce_colors = 5
+
+# Do you want to convert colors that are not to be flood filled to black
+convert_to_black = True
+
+# Open image and convert to an array. Make old_img for reference
+img = Image.open(img_path)
+old_img = img
     
-# Get binary array
-binary_arr = np.asarray(binary_img)
+# Reduce to the desired number of colors
+if reduce_colors:
+    conv_img = img.convert('P', palette=Image.ADAPTIVE, colors=reduce_colors)
+    img = conv_img.convert('RGB')
+    
+# display image in IPython console to show the possibly reduced image
+display(img)
 
-print('Flood Fill')
-start = time.time()
-current = start
+# Print out color palettes that are indexed for selection by user
+colors = [elem[1] for elem in img.getcolors()]
+for i, elem in enumerate(colors):
+    print('\n\nColor ' + str(i))
+    im = Image.new('RGB', (40, 40), color=elem)
+    # dsplays in IPython console
+    display(im)
+    
+# Ask for user input on which colors to remove
+non_flood_color_str = input('Enter the numbers of the colors that will NOT have flood fill applied (separated by spaces if multiple): ')
+non_flood_colors = [colors[int(elem)] for elem in \
+                               non_flood_color_str.split()]
 
-# Initialize empty list of used colors
-used_colors = []
+# Create image array and set flags to write
+img_arr = np.asarray(img)
+img_arr.setflags(write=1)
 
-# get initial random color
-replace = random_rgb()
-used_colors.append(replace)
+# define black and white
+black = [0, 0, 0]
 
-# initialize target color (white)
-target = [255, 255, 255]
+# set used colors to the flood colors
+used_colors = non_flood_colors
 
-# iterate through every pixel
-for y in range(binary_img.size[0]):
-    for x in range(binary_img.size[1]):
-        print(replace)
-        # start fill flood
-        flood_result = flood_fill(binary_arr, x, y, target, replace)
-        
-        # change colors if color was used in fill flood
-        if flood_result:
-            replace = random_rgb()
-            used_colors.append(replace)
-        break
-    break
-    if y % 100 == 0:
-        print(y)
-        print(time.time() - current)
-        current= time.time()
-
-print('Final Flood Fill Time')
-print(time.time() - start)  
-
-
-filled_img = Image.fromarray(binary_arr)
-filled_img.save('./hampton_filled_new.jpg')
-
-
+# iterate through every pixel applying the flood fill
+for y in tqdm(range(img.size[0])):
+    for x in tqdm(range(img.size[1])):
+        # Apply flood fill if current pixel has not been used
+        if tuple(img_arr[x][y]) not in used_colors:
+            # Get unique random color
+            new_color = random_rgb(used_colors)
+            
+            # Flood fill
+            ImageDraw.floodfill(img, (x,y), tuple(new_color),thresh=threshold)
+            
+            # Update used colors and image array
+            used_colors.append(new_color)
+            img_arr = np.asarray(img)
+            img_arr.setflags(write=1)
+            
+# =============================================================================
+#         # If it is one of the original colors, possibly make black
+#         if tuple(img_arr[x][y]) in non_flood_colors and convert_to_black:
+#             img_arr[x][y] = black
+#             img = Image.fromarray(img_arr)
+# =============================================================================
 
 
 
