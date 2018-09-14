@@ -651,6 +651,21 @@ def merge_to_right_number(df, num_regions):
         
     return df
 
+def delete_cpg(path):
+    '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
+    encodes a shapefile and incorrectly saves the CPG. Before running most
+    of the scripts, it is beneficially to ensure an encoding error does throw
+    an error
+    
+    Argument:
+        path: path to a file that has the same name as the .cpg file. Usually
+        the shapefile
+    '''
+    
+    cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
+    if os.path.exists(cpg_path):
+        os.remove(cpg_path)
+        
 def save_shapefile(df, file_path, cols_to_exclude=[]):
     ''' Saves a geodataframe to shapefile, deletes columns specified by user.
     If the path already exists a backup will be created in the path ./Backup/
@@ -697,7 +712,11 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
         file_no_ext = '.'.join(filename.split('.')[:-1])
         file_ext = filename.split('.')[-1]
         backup_path = backup_dir + '/' + file_no_ext + '_' + d + '.' + file_ext
-        shutil.copy(file_path, backup_path)
+        
+        # load in backup dataframe
+        delete_cpg(file_path)
+        backup_df = gpd.read_file(file_path)
+        backup_df.to_file(backup_path)
         
         # Save the new file to the folder
         df.to_file(file_path)
@@ -705,21 +724,6 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
     # Save file if the file does not already exist
     else:
         df.to_file(file_path)
-    
-def delete_cpg(path):
-    '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
-    encodes a shapefile and incorrectly saves the CPG. Before running most
-    of the scripts, it is beneficially to ensure an encoding error does throw
-    an error
-    
-    Argument:
-        path: path to a file that has the same name as the .cpg file. Usually
-        the shapefile
-    '''
-    
-    cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
-    if os.path.exists(cpg_path):
-        os.remove(cpg_path)
     
 def default_path(path, local, direc_path):
     '''If the path is a keyword, the path to a designated shapefile will be
