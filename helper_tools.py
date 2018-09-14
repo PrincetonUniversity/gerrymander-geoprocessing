@@ -767,13 +767,11 @@ def set_CRS(gdf, new_crs='epsg:4269'):
     '''
     
     # If no CRS set, set it with .crs
-    if gdf.crs == None:
+    if gdf.crs == {}:
         gdf.crs = {'init': new_crs}
-    
     # Transform CRS
     else:
         gdf = gdf.to_crs({'init': new_crs})
-        
     return gdf
 
 def read_one_csv_elem(csv_path, row=0, col=1):
