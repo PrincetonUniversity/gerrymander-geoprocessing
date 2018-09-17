@@ -51,7 +51,7 @@ def generate_bounding_frame(df, file_str):
     # create dataframe and save to shapefile
     out_df = gpd.GeoDataFrame()
     out_df['geometry'] = [frame]
-    out_df.to_file(file_str)
+    save_shapefile(out_df, file_str)
     
     return frame
 
@@ -751,6 +751,11 @@ def default_path(path, local, direc_path):
         
     if path == 'precinct_final':
         filename = local + '_precincts_final.shp'
+        filename = filename.replace(' ', '_')
+        path = direc_path + '/' + local + '/' + filename
+        
+    if path == 'bounding_frame':
+        filename = local + '_bounding_frame.shp'
         filename = filename.replace(' ', '_')
         path = direc_path + '/' + local + '/' + filename
 
