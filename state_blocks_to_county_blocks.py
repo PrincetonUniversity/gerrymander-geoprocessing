@@ -28,14 +28,18 @@ no_pickle = 0
 #%% THIS TAKES REALLY LONG. Should Be able to skip once pickle file is saved
 # Import census state file and save to pickle
 if no_pickle:
+    print('Load Full')
     df = gpd.read_file(census_shape_path)
+    print('Finished Load Full')
     df.to_pickle(census_shape_folder + state + '/census_df.pkl')
 
 #%% This also only takes kinda long
 
 # Read in df and make county fips an int
 if not no_pickle:
+    print('Load Pickle')
     df = pd.read_pickle(census_shape_folder + state + '/census_df.pkl')
+    print('Finished Load Pickle')
 
 #%%
 df['COUNTYFP10'] = df['COUNTYFP10'].apply(int)
@@ -63,7 +67,7 @@ convert_every_locality = False
 convert_list_locality = True
 
 # List of localities to convert if convert_list_locality is True
-localities_to_convert =  []
+localities_to_convert =  ['Fairfax City']
 
 # Get the number of folder name matches
 folder_count = 0
