@@ -769,6 +769,11 @@ def default_path(path, local, direc_path):
         filename = local + '_bounding_frame.shp'
         filename = filename.replace(' ', '_')
         path = direc_path + '/' + local + '/' + filename
+        
+    if path == 'census_block_removed':
+        filename = local + '_census_block_removed.shp'
+        filename = filename.replace(' ', '_')
+        path = direc_path + '/' + local + '/' + filename
 
     return path
     
