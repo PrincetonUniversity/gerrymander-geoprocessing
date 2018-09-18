@@ -2,7 +2,7 @@ import geopandas as gpd
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/generate_bounding_frame_Albemarle.csv"
+csv_path = "/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/generate_bounding_frame_Essex_Richmond_Staunton.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the difference

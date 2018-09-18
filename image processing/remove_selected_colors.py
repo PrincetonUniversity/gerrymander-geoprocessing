@@ -5,13 +5,13 @@ import numpy as np
 from tqdm import tqdm
 
 # Input and output paths for image being manipulated
-img_path = ''
-img_path_out = ''
+img_path = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/Alleghany Screenshot.PNG'
+img_path_out = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/Alleghany_reduced.PNG'
 
 # Do you want to reduce the number of colors in the current image 
 # (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
 # to reduce. Set to 0 if you do NOT want to reduce)
-reduce_colors = 8
+reduce_colors = 13
 
 # Do you convert all non-white colors to black?
 convert_non_white_to_black = False

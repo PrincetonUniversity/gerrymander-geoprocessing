@@ -3,7 +3,7 @@ import pandas as pd
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/TestTools.csv"
+csv_path = "/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/Essex_Richmond_Staunton_conversion_9_18.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
@@ -14,10 +14,9 @@ try:
     
     # Import table from CSV into pandas df
     csv_col = ['Locality', 'Num Regions', 'Census Path', 'Out Path',\
-                 'Image Path', 'Colors']
+                 'Image Path', 'Colors', 'Cropped']
     csv_list = []
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
-
     # Initialize out_df, which contains the results of the transfers and
     # contains what will be copied into the conversion page of the Google
     # sheet
@@ -39,7 +38,12 @@ try:
             out_path = csv_df.at[i, 'Out Path']
             img_path = csv_df.at[i, 'Image Path']
             num_colors = csv_df.at[i, 'Colors']
-
+            crop = csv_df.at[i, 'Cropped']
+            
+            if crop == 1:
+                cropped = ht.cropped_bordered_image(img_path)
+                img_path =  '.'.join(path.split('.')[:-1]) + ' cropped' + '.png'
+            
             # Change census shapefile path and out path if set to default
             shape_path = ht.default_path(shape_path, local, direc_path)
             out_path = ht.default_path(out_path, local, direc_path)

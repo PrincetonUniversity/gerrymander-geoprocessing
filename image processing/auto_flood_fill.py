@@ -19,8 +19,8 @@ def random_rgb(used_colors=[]):
     return rgb
 
 # Input and output paths for image being manipulated
-img_path = ''
-img_path_out = ''
+img_path = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Staunton City/Capture.PNG'
+img_path_out = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Staunton City/Staunton_image.png'
 
 # Define threshold for flood fill. This threshold is the 1-norm to determine
 # how far away RGB values can be to be considered the same color. 0 means
@@ -32,9 +32,6 @@ threshold = 0
 # (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
 # to reduce. Set to 0 if you do NOT want to reduce)
 reduce_colors = 5
-
-# Do you want to convert colors that are not to be flood filled to black
-convert_to_black = False
 
 # Open image and convert to an array. Make old_img for reference
 img = Image.open(img_path)
