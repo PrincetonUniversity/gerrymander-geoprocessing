@@ -11,15 +11,17 @@ csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct 
 try:
     # Import Google Drive path
     direc_path = ht.read_one_csv_elem(csv_path)
+            
     # Import table from CSV into pandas df
-    csv_col = ['Locality Name', 'Shape1', 'Shape2']
+    csv_col = ['Locality Name', 'Remove', 'Out Path', 'Keep Ratio']
     csv_list = []
-    csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
-
-    # Initialize out_df, which contains the batching output
-    new_cols = ['Result', 'Locality Name', 'Percent Diff']
-    out_df = pd.DataFrame(columns=new_cols)
+    csv_df = ht.read_csv_to_df(csv_path, 2, csv_col, csv_list)
     
+    # get the base path
+    base_path = ht.read_one_csv_elem(csv_path, 2, 2)
+    ht.delete_cpg(base_path)
+    base_df = gpd.read_file(base_path)
+
     # Iterate through each county we are finding the difference for
     for i, _ in csv_df.iterrows():
         
@@ -29,58 +31,40 @@ try:
             local = csv_df.at[i, 'Locality Name']
             print(local)
 
-            # Get path for the first shape
-            path_shape1 = direc_path + '/' + local + '/' + \
-                            csv_df.at[i, 'Shape1']
-                            
-            # Get path for the second shape
-            # Set second shape to census blocks if set to default
-            if csv_df.at[i, 'Shape2'] == 1:
-                census_filename = local + '_census_block.shp'
-                census_filename = census_filename.replace(' ', '_')
-                path_shape2 = direc_path + '/' + local + '/' + \
-                                census_filename
-            else:
-                path_shape2 = direc_path + '/' + local + '/' + \
-                            csv_df.at[i, 'Shape2']
-
-            # Read in first shape
-            ht.delete_cpg(path_shape1)
-            df1 = gpd.read_file(path_shape1)
+            # Get path for remove and base shape
+            remove_path = ht.default_path(csv_df.at[i, 'Remove'], local, \
+                                          direc_path)
+            ht.delete_cpg(remove_path)
+            remove_df = gpd.read_file(remove_path)
+            
+            # Get path for out path
+            out_path = ht.default_path(csv_df.at[i, 'Out Path'], local, \
+                                       direc_path)
             
             # Find union of first shape
-            polys1 = list(df1['geometry'])
-            poly1 = shp.ops.cascaded_union(polys1)
+            base_polys = list(base_df['geometry'])
+            base_poly = shp.ops.cascaded_union(base_polys)
             
-            # Read in second shape
-            ht.delete_cpg(path_shape2)
-            df2 = gpd.read_file(path_shape2)
+            drop_ix = []
+            drop_ratio = csv_df.at[i, 'Keep Ratio']
             
-            # Find union of second shape
-            polys2 = list(df2['geometry'])
-            poly2 = shp.ops.cascaded_union(polys2)
-            
-            # Find percent difference
-            diff = poly2.difference(poly1).area
-            perc_diff = diff / poly2.area
-        
-            # Place Results in out_df
-            row = len(out_df)
-            out_df.at[row, 'Result'] = 'SUCCESS'
-            out_df.at[row, 'Locality Name'] = csv_df.at[i, 'Locality Name']
-            out_df.at[row, 'Percent Diff'] = perc_diff
+            # Iterate through all of the remove geometries
+            for j, _ in remove_path.iterrows():
+                # Get overlap ratio
+                poly = base_df.at[j, 'geometry']
+                ratio = poly.intersection(base_poly).area / poly.area
+                
+                # Drop when intersection ratio is less than drop ratio
+                if ratio < drop_ratio:
+                    drop_ix.append(j)
+                    
+            # Drop indexes and save
+            out_df = remove_df.drop(drop_ix)
+            ht.save_shapefile(out_df, out_path, cols_to_exclude=[])
         
         # Shapefile creation failed
         except:
             print('ERROR:' + csv_df.at[i, 'Locality'])
-            row = len(out_df)
-            out_df.at[row, 'Result'] = 'FAILURE'
-            out_df.at[row, 'Locality Name'] = csv_df.at[i, 'Locality Name']
-            out_df.at[row, 'Percinct Diff'] = 'NA'
-
-    # Create path to output our results CSV file and output
-    csv_out_path = csv_path[:-4] + ' RESULTS.csv'
-    out_df.to_csv(csv_out_path)
 
 # CSV file could not be read in or exported
 except:
