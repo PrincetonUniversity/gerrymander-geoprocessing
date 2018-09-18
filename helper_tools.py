@@ -1046,9 +1046,9 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     
     # Save census block shapefile with updated attribute table
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
-    
+   
     # Save precinct shapefile    
-    save_shapefile(df_prec, out_path, ['neighbors'])
+    generate_precinct_shp(local, shape_path, out_path, 'region')
         
     return len(df)
 
@@ -1208,6 +1208,6 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
     
     # Save precinct shapefile    
-    save_shapefile(df_prec, out_path, ['neighbors'])
+    generate_precinct_shp(local, shape_path, out_path, 'region')
 
     return len(df)
