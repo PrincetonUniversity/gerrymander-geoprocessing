@@ -837,126 +837,6 @@ def read_csv_to_df(csv_path, head, col_names, list_cols):
             
     return csv_df
 
-def majority_areal_interpolation(df_to, df_from, adjust_cols):
-    ''' Perform majority area areal interpolation on two dataframes. Returns
-    the modified dataframe (to_df). Also assigns element that do not have
-    overlapping bounding boxes by closest centroid distance
-    
-    Arguments:
-        to_df_path: path to the shapefile containing the dataframe to be 
-        modified
-        from_df_path: path to the shapefile used to modify to_df
-        adjust_cols: list of tuples that determine which df_to columns are
-        set equal to which df_from cols. Format column is string manipulation
-        to apply such as upper/lower/title case [(df_to_col1, df_from_col1, 
-        format_col1), (df_to_col2, df_from_col2, format_col2),...]
-            
-    Output: To dataframe with the value interpolated
-    '''
-
-    # Read in input dataframe
-    df_from.index = df_from.index.astype(int)
-    
-    # Need to define which columns in the to dataframe to drop. We will drop
-    # all columns from the csv that actually exist in the to dataframe. We
-    # will also drop columns in the to_
-    drop_cols_before = []
-    drop_cols_after = []
-    for tup in adjust_cols:
-        # add to before drop
-        if tup[0] in df_to.columns:
-            drop_cols_before.append(tup[0])
-            
-        # add to after drop
-        if tup[1] not in df_from.columns:
-            print('Column not in from df: ' + tup[1])
-            drop_cols_after.append(tup[0])
-            
-    # Drop columns that are already in df_to
-    df_to = df_to.drop(columns=drop_cols_before)
-
-    # Create all output columns in the to_df
-    for tup in adjust_cols:
-        df_to[tup[0]] = pd.Series(dtype=object)
-
-    # construct r-tree spatial index. Creates minimum bounding rectangle about
-    # each geometry in df_from
-    si = df_from.sindex
-
-    # get centroid for al elements in df_from to take care of no intersection
-    # cases
-    df_from['centroid'] = pd.Series(dtype=object) 
-    for j, _ in df_from.iterrows():
-        df_from.at[j, 'centroid'] = df_from.at[j, 'geometry'].centroid
-
-    # iterate through every geometry in the to_df to match with from_df and set
-    # target values
-    for i, _ in df_to.iterrows():
-    
-        # initialize current element's geometry and check which for minimum
-        # bounding rectangle intersections
-        df_to_elem_geom = df_to.at[i, 'geometry']
-        poss_df_from_elem = [df_from.index[i] for i in \
-                      list(si.intersection(df_to_elem_geom.bounds))]
-
-        # If precinct's MBR only from_df geometry. Set it equal
-        if len(poss_df_from_elem) == 1:
-            df_from_elem = poss_df_from_elem[0]
-        else:
-            # for cases with multiple matches, compare fractional area
-            frac_area = {}
-            found_majority = False
-            for j in poss_df_from_elem:
-                if not found_majority:
-                    area = df_from.at[j, 'geometry'].intersection(\
-                                   df_to_elem_geom).area / \
-                                   df_to_elem_geom.area
-                    # Majority area means, we can assign
-                    if area > .5:
-                        found_majority = True
-                    frac_area[j] = area
-
-            # if there was intersection get max of frac area
-            if len(frac_area) > 0:
-                df_from_elem = max(frac_area.items(), \
-                                 key=operator.itemgetter(1))[0]
-            # No intersection so found nearest centroid
-            else:
-                # get centroid on the current geometry
-                c = df_to.at[i, 'geometry'].centroid
-                min_dist = -1
-                
-                # find the minimum distance index
-                for j, _ in df_from.iterrows():
-                    cur_dist = c.distance(df_from.at[j, 'centroid'])
-                    if min_dist == -1 or cur_dist < min_dist:
-                        df_from_elem = j
-                        min_dist = cur_dist
-
-        # Set corresponding df_to values to df_from values if the column exist
-        # in from_df     
-        df_from_cols = df_from.columns
-        for tup in adjust_cols:
-            # Interpolate
-            if tup[1] in df_from_cols:
-                input_str = df_from.at[df_from_elem, tup[1]]
-
-                # Set formatting from input
-                if tup[2] == 'U':
-                    input_str = input_str.upper()
-                elif tup[2] == 'L':
-                    input_str = input_str.lower()
-                elif tup[2] == 'T':
-                    input_str = titlecase(input_str)
-
-                df_to.at[i, tup[0]] = input_str
-
-    # Delete and print columns that are missing in from dataframe
-    df_to = df_to.drop(columns=drop_cols_after)
-
-    # Return output dataframe
-    return df_to
-
 def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
                       colors=0, sample_limit=500):
     ''' Generates a precinct level shapefile from census block data and an 
@@ -1042,7 +922,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
 
     # Assign census blocks to regions
-    df = majority_areal_interpolation(df, df_prec, [('region', 'region', 0)])
+    df = interpolate_label(df, df_prec, [('region', 'region'), 0])
     
     # Save census block shapefile with updated attribute table
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
@@ -1202,7 +1082,7 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
 
     # Assign census blocks to regions
-    df = majority_areal_interpolation(df, df_prec, [(prec_col, prec_col, 0)])
+    df = interpolate_label(df, df_prec, [(prec_col, prec_col), 0])
     
     # Save census block shapefile with updated attribute table
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
@@ -1212,7 +1092,7 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
 
     return len(df)
 
-def label_general(df_to, df_from, adjust_cols, label_type='greatest area'):
+def interpolate_label(df_to, df_from, adjust_cols, label_type='greatest area'):
     ''' Label geometries (assign a text value0) in df_to from df_from based on
     the label_type method. Also assigns elements that do not have overlapping 
     bounding boxes by closeset centroid distance

@@ -4,7 +4,7 @@ import helper_tools as ht
 # Transfer an attribute column to another shapefile using areal interpolation.
 
 # Get path to our CSV batch file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/Get_Tract_Area_Aug_29.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/interpolate_label_testing_galax.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
@@ -13,7 +13,7 @@ try:
     direc_path = ht.read_one_csv_elem(csv_path)
     
     # Import table from CSV into pandas df
-    csv_col = ['locality', 'to_df path', 'to_df cols', 'format', \
+    csv_col = ['locality', 'type', 'to_df path', 'to_df cols', 'format', \
                     'from_df path', 'from_df cols']
     csv_list = ['to_df cols', 'from_df cols', 'format']
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
@@ -44,7 +44,7 @@ try:
             for ix, elem in enumerate(to_cols):
                 adjust_cols.append((elem, from_cols[ix], format_cols[ix]))
                 
-            # Load in to path and from path
+            # Get to path and from path
             to_path = ht.default_path(csv_df.at[i, 'to_df path'], local, \
                                       direc_path)
             from_path = ht.default_path(csv_df.at[i, 'from_df path'], \
@@ -54,12 +54,13 @@ try:
             ht.delete_cpg(to_path)
             ht.delete_cpg(from_path)
             
+            # Load dataframes
             df_to = gpd.read_file(to_path)
             df_from = gpd.read_file(from_path)
-                
-            # run majority areal interpolation
-            new_df_to = ht.majority_areal_interpolation(df_to, df_from, \
-                                                        adjust_cols)
+
+            # run label interpolation
+            new_df_to = ht.interpolate_label(df_to, df_from, adjust_cols,\
+                                             csv_df.at[i, 'type'])
             
             # Save the new "to" df
             ht.save_shapefile(new_df_to, to_path)
