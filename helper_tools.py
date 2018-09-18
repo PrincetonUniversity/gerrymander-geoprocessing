@@ -54,7 +54,7 @@ def generate_bounding_frame(df, file_str):
     save_shapefile(out_df, file_str)
     
     return frame
-#%%
+
 def cropped_bordered_image(img_path):
     ''' Given an image with a border of one color, returns an image with the
     border cropped off.  Works with images in numpy array form.
@@ -107,7 +107,7 @@ def cropped_bordered_image(img_path):
     
     # crop and return array
     return new_name
-#%%
+
 def real_rook_contiguity(df, geo_id = 'geometry',
                          nbr_id='neighbors',struct_type='list'):
     ''' Generates neighbor list using rook contiguity for a geodataframe.
