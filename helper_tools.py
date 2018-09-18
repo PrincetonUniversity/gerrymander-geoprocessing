@@ -879,7 +879,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     shp_ylen = bounds[3] - bounds[1]
     shp_xmin = bounds[0]
     shp_ymin = bounds[1]
-    
+
     # Iterate through each polygon and assign its most common color
     for i, _ in df.iterrows():
         
@@ -896,10 +896,11 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     
     # Get unique values in the df precinct column
     prec_id = list(df.region.unique())
-    
+
     # Initialize the precinct dataframe, which will eventually be exported
     # as the precinct shapefile
     df_prec = pd.DataFrame(columns=['region', 'geometry'])
+
     
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # cascaded union        
@@ -908,21 +909,21 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
         polys = list(df_poly['geometry'])
         df_prec.at[i, 'geometry'] = shp.ops.cascaded_union(polys)
         df_prec.at[i, 'region'] = elem
-        
+    
     # Split noncontiguous precincts
     df_prec = split_noncontiguous(df_prec)
 
     # Merge precincts fully contained in other precincts
     df_prec = merge_fully_contained(df_prec)
-
-    # Merge precincts until we have the correct number of precincts
-    df_prec = merge_to_right_number(df_prec, num_regions)
     
     # Convert precinct dataframe into a geodataframe
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
 
+    # Merge precincts until we have the correct number of precincts
+    df_prec = merge_to_right_number(df_prec, num_regions)
+
     # Assign census blocks to regions
-    df = interpolate_label(df, df_prec, [('region', 'region'), 0])
+    df = interpolate_label(df, df_prec, [('region', 'region', 0)])
     
     # Save census block shapefile with updated attribute table
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
@@ -1082,7 +1083,7 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
 
     # Assign census blocks to regions
-    df = interpolate_label(df, df_prec, [(prec_col, prec_col), 0])
+    df = interpolate_label(df, df_prec, [(prec_col, prec_col, 0)])
     
     # Save census block shapefile with updated attribute table
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
@@ -1122,10 +1123,11 @@ def interpolate_label(df_to, df_from, adjust_cols, label_type='greatest area'):
     df_from.index = df_from.index.astype(int)
     
     # Need to define which columns in the to dataframe to drop. We will drop
-    # all columns from the csv that actually exist in the to dataframe. We
+    # all columns from the csv that actuaslly exist in the to dataframe. We
     # will also drop columns in the to_
     drop_cols_before = []
     drop_cols_after = []
+    print(adjust_cols)
     for tup in adjust_cols:
         # add to before drop
         if tup[0] in df_to.columns:
@@ -1135,7 +1137,7 @@ def interpolate_label(df_to, df_from, adjust_cols, label_type='greatest area'):
         if tup[1] not in df_from.columns:
             print('Column not in from df: ' + tup[1])
             drop_cols_after.append(tup[0])
-            
+
     # Drop columns that are already in df_to
     df_to = df_to.drop(columns=drop_cols_before)
 
@@ -1234,4 +1236,22 @@ def interpolate_label(df_to, df_from, adjust_cols, label_type='greatest area'):
     df_to = df_to.drop(columns=drop_cols_after)
 
     # Return output dataframe
+    return df_to
+
+def create_area_series(df):
+    ''' Add area series to a geodataframe.
+    
+    Arguments:
+        df: geodataframe that the area series will be appended to
+            
+    Output: Original dataframe
+    '''
+    for i, _ in df.itterows():
+        df.at[i, 'area'] = df.at[i, 'geometry'].area
+        
+    return df
+    
+def create_interpolate_aggregate(df_to, df_from, adjust_cols, ):
+    '''
+    '''
     return df_to
