@@ -104,7 +104,6 @@ def cropped_bordered_image(img_path):
     new_name = filename + '.' + ext
     cropped_img = Image.fromarray(img_arr[top+1:bottom, left+1:right])
     cropped_img.save(new_name)
-    print('Here')
     
     # crop and return array
     return new_name
@@ -905,8 +904,6 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     # as the precinct shapefile
     df_prec = pd.DataFrame(columns=['region', 'geometry'])
 
-    print('Here')
-    # Iterate through all of the precinct IDs and set geometry of df_prec with
     # cascaded union        
     for i, elem in enumerate(prec_id):
         df_poly = df[df['region'] == elem]
