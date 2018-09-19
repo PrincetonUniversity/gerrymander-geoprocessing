@@ -104,6 +104,7 @@ def cropped_bordered_image(img_path):
     new_name = filename + '.' + ext
     cropped_img = Image.fromarray(img_arr[top+1:bottom, left+1:right])
     cropped_img.save(new_name)
+    print('Here')
     
     # crop and return array
     return new_name
@@ -485,7 +486,10 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
             # calculate z-score based on proportion test
             # trying to get evidence that this color is over 50% frequent
             # among all pixels
-            z_score = (2 * common_count / used - 1) * np.sqrt(used)
+            if used > 0:
+                z_score = (2 * common_count / used - 1) * np.sqrt(used)
+            else:
+                z_score = 0
             
             # stop sampling if we have convincing evidence or we hit our limit
             if (z_score > 4 or sampled >= sample_limit):
@@ -901,7 +905,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     # as the precinct shapefile
     df_prec = pd.DataFrame(columns=['region', 'geometry'])
 
-    
+    print('Here')
     # Iterate through all of the precinct IDs and set geometry of df_prec with
     # cascaded union        
     for i, elem in enumerate(prec_id):
@@ -1127,7 +1131,7 @@ def interpolate_label(df_to, df_from, adjust_cols, label_type='greatest area'):
     # will also drop columns in the to_
     drop_cols_before = []
     drop_cols_after = []
-    print(adjust_cols)
+
     for tup in adjust_cols:
         # add to before drop
         if tup[0] in df_to.columns:
