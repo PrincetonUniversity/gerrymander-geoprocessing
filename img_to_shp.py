@@ -3,7 +3,7 @@ import pandas as pd
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/Essex_Richmond_Staunton_conversion_9_18.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Auto CSV/Essex_Richmond_Staunton_conversion_9_18_connor.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
@@ -41,8 +41,7 @@ try:
             crop = csv_df.at[i, 'Cropped']
             
             if crop == 1:
-                cropped = ht.cropped_bordered_image(img_path)
-                img_path =  '.'.join(path.split('.')[:-1]) + ' cropped' + '.png'
+                img_path = ht.cropped_bordered_image(img_path)
             
             # Change census shapefile path and out path if set to default
             shape_path = ht.default_path(shape_path, local, direc_path)
@@ -63,7 +62,8 @@ try:
             out_df.at[row, 'Num Census Blocks'] = result
         
         # Shapefile creation failed
-        except:
+        except Exception as e:
+            print(e)
             print('ERROR:' + csv_df.at[i, 'Locality'])
             row = len(out_df)
             out_df.at[row, 'Result'] = 'FAILURE'
