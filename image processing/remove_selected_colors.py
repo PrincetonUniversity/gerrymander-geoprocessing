@@ -38,6 +38,7 @@ for i, elem in enumerate(colors):
     
 # Ask for user input on which colors to remove
 remove_color_str = input('Enter the numbers of the colors to remove (separated by spaces if multiple): ')
+print('Thank You')
 remove_color_list = [int(elem) for elem in remove_color_str.split()]
 remove_colors = [colors[elem] for elem in remove_color_list]
 

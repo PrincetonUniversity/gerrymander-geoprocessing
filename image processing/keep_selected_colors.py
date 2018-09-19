@@ -7,13 +7,13 @@ import numpy as np
 from tqdm import tqdm
 
 # Input and output paths for image being manipulated
-img_path = ''
-img_path_out = ''
+img_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/magisterial.districts-1.jpg"
+img_path_out = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/magisterial_districts_keep_red.jpg"
 
 # Do you want to reduce the number of colors in the current image 
 # (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
 # to reduce. Set to 0 if you do NOT want to reduce)
-reduce_colors = 5
+reduce_colors = 15
 
 # Do you convert all non-white colors to black?
 convert_non_white_to_black = False
@@ -40,6 +40,7 @@ for i, elem in enumerate(colors):
     
 # Ask for user input on which colors to keep
 keep_color_str = input('Enter the numbers of the colors to keep (separated by spaces if multiple): ')
+print('Thank You')
 keep_color_list = [int(elem) for elem in keep_color_str.split()]
 keep_colors = [colors[elem] for elem in keep_color_list]
 

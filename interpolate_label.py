@@ -4,7 +4,7 @@ import helper_tools as ht
 # Transfer an attribute column to another shapefile using areal interpolation.
 
 # Get path to our CSV batch file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Areal Interpolate CSV/interpolate_label_testing_galax.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/interpolate_label_Bedford_County_connor.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
