@@ -5,16 +5,13 @@ import numpy as np
 from tqdm import tqdm
 
 # Input and output paths for image being manipulated
-img_path = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/Alleghany Screenshot.PNG'
-img_path_out = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/Alleghany_reduced.PNG'
+img_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/image processing/Auto Flood Fill Template.png"
+img_path_out = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/image processing/Auto Flood Fill Template Removed Color.png"
 
 # Do you want to reduce the number of colors in the current image 
 # (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
 # to reduce. Set to 0 if you do NOT want to reduce)
-reduce_colors = 13
-
-# Do you convert all non-white colors to black?
-convert_non_white_to_black = False
+reduce_colors = 4
 
 # Open image and convert to an array
 img = Image.open(img_path)
@@ -27,6 +24,7 @@ if reduce_colors:
     
 # display image in IPython console to show the possibly reduced image
 display(img)
+img.save(img_path_out)
 
 # Print out color palettes that are indexed for selection by user
 colors = [elem[1] for elem in img.getcolors()]
