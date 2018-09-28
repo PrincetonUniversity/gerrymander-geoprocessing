@@ -41,10 +41,10 @@ try:
             # Identify current and new full path names
             file = csv_df.at[i, 'Path'].split('/')[-1]
             file_type = file.split('.')[-1]                            
-            new_name = 'source_' + csv_df.at[i, 'Source'] + \
-                        '_old-name_' + file
+            new_name = 'source-' + csv_df.at[i, 'Source'] + \
+                        '-originally-' + file
             # ensure no spaces in filename
-            new_name = new_name.replace(' ', '-')
+            new_name = new_name.replace(' ', '_')
         
             # Ensure that the new file name is not too l ong
             if len(new_name) > 255:
@@ -103,10 +103,10 @@ try:
                     
                     # Identify current and new full path names
                     file_type = file.split('.')[-1]                            
-                    new_name = 'source_' + csv_df.at[i, 'Source'] + \
-                                '_old-name_' + file
+                    new_name = 'source-' + csv_df.at[i, 'Source'] + \
+                                '-originally_' + file
                     # ensure no spaces in filename
-                    new_name = new_name.replace(' ', '-')
+                    new_name = new_name.replace(' ', '_')
                                 
                     # Ensure that the new file name is not too l ong
                     if len(new_name) > 255:
