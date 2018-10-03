@@ -5,7 +5,7 @@ import shutil
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Transfer CSVs/SHP_transfer_all.csv"
+csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/OH/CSV/SHP_transfer_VRDI Butler.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
@@ -24,7 +24,9 @@ try:
     out_df = pd.DataFrame(columns=new_cols)
     
     # Set list of extension types that do not get entries into out_df
-    no_entry_ext = ['cpg', 'dbf', 'prj', 'xml', 'shx', 'sbn', 'sbx', 'lock']
+    no_entry_ext = ['cpg', 'dbf', 'prj', 'xml', 'shx', 'sbn', 'sbx', 'lock',
+                    '_ds_store', 'e00', 'gpkg-shm', 'gpkg-wal', 'kml', 'mlm',
+                    'qpj', 'zip']
     
     # Iterate through each row/folder we are transferring files form
     for i, _ in csv_df.iterrows():
@@ -40,7 +42,7 @@ try:
             
             # Identify current and new full path names
             file = csv_df.at[i, 'Path'].split('/')[-1]
-            file_type = file.split('.')[-1]                            
+            file_type = file.split('.')[-1].lower()                     
             new_name = 'source-' + csv_df.at[i, 'Source'] + \
                         '-originally-' + file
             # ensure no spaces in filename
@@ -104,7 +106,7 @@ try:
                     # Identify current and new full path names
                     file_type = file.split('.')[-1]                            
                     new_name = 'source-' + csv_df.at[i, 'Source'] + \
-                                '-originally_' + file
+                                '-originally-' + file
                     # ensure no spaces in filename
                     new_name = new_name.replace(' ', '_')
                                 
