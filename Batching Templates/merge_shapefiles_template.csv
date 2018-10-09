@@ -1,0 +1,4 @@
+Directory that contains county folders ?,(paste path to folder containing locality folders)
+Output Path ?,(paste path to folder you would like to contain a complete merged shapefile)
+"Columns to keep (Default 1 for keep all; separate with "","" no spaces)",(type 1 or list of columns to keep)
+Locality Name (Type locality names to match the folders),Shapefile Path
