@@ -6,41 +6,37 @@ import helper_tools as ht
 # Define paths
 county_fips_path = '/Users/hwheelen/Desktop/OH/national_county_fips.txt'
 
-#census_shape_folder = '/Users/hwheelen/Documents/GitHub/ohio-precincts/shp/'
+census_shape_folder = '/Users/hwheelen/Downloads/2016_Voting_Precincts/'
 
 # Select state
-state = 'OH'
+state = 'MI'
 
 # Define census name and path
 #census_filename = '/precincts_results.shp'
-census_shape_path = '/Users/hwheelen/Documents/GitHub/ohio-precincts/shp/precincts_results.shp'
+census_shape_path = '/Users/hwheelen/Downloads/2016_Voting_Precincts/2016_Voting_Precincts.shp'
 
 # Define path to parent directory of locality folders
-state_shape_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts"
+state_shape_folder = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/MI/Precinct Data"
 
 # Delete CPG file
 ht.delete_cpg(census_shape_path)
 
-no_pickle = 0
+no_pickle = 1
 
 #%% THIS TAKES REALLY LONG. Should Be able to skip once pickle file is saved
 # Import census state file and save to pickle
 if no_pickle:
-    print('Load Full')
     df = gpd.read_file(census_shape_path)
-    print('Finished Load Full')
     df.to_pickle(census_shape_folder + state + '/census_df.pkl')
 
 #%% This also only takes kinda long
 
 # Read in df and make county fips an int
 if not no_pickle:
-    print('Load Pickle')
     df = pd.read_pickle(census_shape_folder + state + '/census_df.pkl')
-    print('Finished Load Pickle')
 
 #%%
-df['COUNTYFP10'] = df['COUNTYFP10'].apply(int)
+df['CountyFips'] = df['CountyFips'].apply(int)
 
 # Read in text file for fips codes
 col_names = ['state', 'state_fips', 'county_fips', 'locality', 'H']
@@ -61,8 +57,8 @@ folder_names.sort()
 locality_names = list(csv_df.index)
 
 # Create booleans to determine whether to add every shapefile or certain ones
-convert_every_locality = False
-convert_list_locality = True
+convert_every_locality = True
+convert_list_locality = False
 
 # List of localities to convert if convert_list_locality is True
 localities_to_convert =  ['Fairfax City']
@@ -94,18 +90,18 @@ if convert_every_locality:
         for local in folder_names:
             # track the locality being created
             print(local)
-            
+
             # Obtain FIPS code
             fips = csv_df.at[local, 'county_fips']
-            
+
             # Save county shapefile
-            df_county = df[df['COUNTYFP10'] == fips]
+            df_county = df[df['CountyFips'] == fips]
             df_county = gpd.GeoDataFrame(df_county, geometry='geometry')
             name = local + ' census block'
             name = name.replace(' ', '_')
             out_path = state_shape_folder + '/' + local + '/' + name + '.shp'
             ht.save_shapefile(df_county, out_path)
-            
+
     else:
         print('\nChange FIPS text file to match folders')
         print(folder_missing)
@@ -119,19 +115,19 @@ elif convert_list_locality:
         for local in localities_to_convert:
             # track how many counties remaining
             print(local)
-            
+
             # Obtain FIPS code
             fips = csv_df.at[local, 'county_fips']
-        
+
             # Save county shapefile
-            df_county = df[df['COUNTYFP10'] == fips]
+            df_county = df[df['CountyFips'] == fips]
             df_county = gpd.GeoDataFrame(df_county, geometry='geometry')
             name = local + ' census block'
             name = name.replace(' ', '_')
             out_path = state_shape_folder + '/' + local + '/' + name + '.shp'
-            
+
             ht.save_shapefile(df_county, out_path)
-            
+
     else:
         print('\nChange FIPS text file to match folders in convert list')
         print(list_missing)
