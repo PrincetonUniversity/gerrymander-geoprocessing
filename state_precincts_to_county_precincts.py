@@ -10,6 +10,7 @@ census_shape_folder = '/Users/hwheelen/Downloads/2016_Voting_Precincts/'
 
 # Select state
 state = 'MI'
+source = 'MIState'
 
 # Define census name and path
 #census_filename = '/precincts_results.shp'
@@ -97,7 +98,7 @@ if convert_every_locality:
             # Save county shapefile
             df_county = df[df['CountyFips'] == fips]
             df_county = gpd.GeoDataFrame(df_county, geometry='geometry')
-            name = local + ' census block'
+            name = 'source-' + source + local + ' precincts'
             name = name.replace(' ', '_')
             out_path = state_shape_folder + '/' + local + '/' + name + '.shp'
             ht.save_shapefile(df_county, out_path)
