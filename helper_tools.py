@@ -976,7 +976,7 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
             # check if precinct contains another precinct. Only make this
             # check if the geometry type is a polygon
             poly_coords = list(geometry.exterior.coords)
-            print(poly_coords)
+
             poly = Polygon(poly_coords)
             # If poly is within the geometry then no neighbors are contained
             if not geometry.contains(poly):
@@ -1042,7 +1042,7 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     # read in census block shapefile
     delete_cpg(shape_path)
     df = gpd.read_file(shape_path)
-    #print(df[prec_col])
+
     
      # Get unique values in the df region column
     prec_id = list(df[prec_col].unique())
@@ -1065,7 +1065,6 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     # reset the prec_id list
 
     prec_id = list(df[prec_col].unique())
-    print(prec_id)
     
     # Initialize the precinct dataframe, which will eventually be exported
     # as the precinct shapefile
