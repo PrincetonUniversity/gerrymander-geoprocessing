@@ -3,7 +3,7 @@ import pandas as pd
 import helper_tools as ht
 
 # Get path to our CSV file
-csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Finalize/New_Ken_Finalize_Aug_21.csv"
+csv_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/blocks_to_precincts_10_24.csv"
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
@@ -15,7 +15,7 @@ try:
     csv_col = ['Locality', 'Census Path', 'Out Path', 'Precinct_Col']
     csv_list = []
     csv_df = ht.read_csv_to_df(csv_path, 1, csv_col, csv_list)
-
+    
     # Initialize out_df, which contains the batch output
     new_cols = ['Result', 'Time Taken', 'Num Census Blocks']
     out_df = pd.DataFrame(columns=new_cols)
@@ -30,8 +30,7 @@ try:
             
             # Set unique variables for the current county
             local = csv_df.at[i, 'Locality']
-            prec_col = csv_df.at[i, 'Precinct_col']
-
+            prec_col = csv_df.at[i, 'Precinct_Col']
             # set census and out path
             census_path = ht.default_path(csv_df.at[i, 'Census Path'], \
                                           local, direc_path)
@@ -53,7 +52,8 @@ try:
             out_df.at[row, 'Num Census Blocks'] = result
             
         # Shapefile creation failed
-        except:
+        except Exception as e:
+            print(e)
             print('ERROR:' + csv_df.at[i, 'Locality'])
             row = len(out_df)
             out_df.at[row, 'Result'] = 'FAILURE'
