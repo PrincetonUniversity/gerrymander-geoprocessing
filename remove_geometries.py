@@ -2,9 +2,21 @@ import pandas as pd
 import geopandas as gpd
 import shapely as shp
 import helper_tools as ht
+import os.path
+import sys
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/shapefile_difference_VA_09_13_18.csv"
+
+# Check if the length is greater than 1
+if len(sys.argv) > 1:
+    # If file exists then make the csv_path the second argument
+    if os.path.isfile(sys.argv[1]):
+        csv_path = sys.argv[1]
+        print('\nUsing command argument as csv path')
+    else:
+        print('\nTerminal argument does not exist. Exiting.')
+        sys.exit()
 
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the difference

@@ -1,10 +1,22 @@
 import pandas as pd
 import geopandas as gpd
 import helper_tools as ht
+import os.path
+import sys
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/match_prec_num_to_name.csv"
 
+# Check if the length is greater than 1
+if len(sys.argv) > 1:
+    # If file exists then make the csv_path the second argument
+    if os.path.isfile(sys.argv[1]):
+        csv_path = sys.argv[1]
+        print('\nUsing command argument as csv path')
+    else:
+        print('\nTerminal argument does not exist. Exiting.')
+        sys.exit()
+        
 save_shp_bool = False
 convert_float_to_int_bool = True
 
