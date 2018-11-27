@@ -959,22 +959,24 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
     # Create dataframe for precinct shapefile
     df_prec = pd.DataFrame(columns=['precinct', 'geometry', 'locality'])
 
+
     # Iterate through all of the prec_col and set geometry of df_prec with
     # cascaded union
     for i, elem in enumerate(prec_names):
         df_poly = df[df[prec_col] == elem]
         polys = list(df_poly['geometry'])
-        
+
         geometry = shp.ops.cascaded_union(polys)
         df_prec.at[i, 'geometry'] = geometry
         df_prec.at[i, prec_col] = elem
+        #print(geometry.type)
         
         # check if precinct is noncontiguous
         if geometry.type == 'Polygon':
-            
             # check if precinct contains another precinct. Only make this
             # check if the geometry type is a polygon
             poly_coords = list(geometry.exterior.coords)
+
             poly = Polygon(poly_coords)
             # If poly is within the geometry then no neighbors are contained
             if not geometry.contains(poly):
@@ -1040,15 +1042,17 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     # read in census block shapefile
     delete_cpg(shape_path)
     df = gpd.read_file(shape_path)
+
     
      # Get unique values in the df region column
-    prec_id = list(df.prec_col.unique())
+    prec_id = list(df[prec_col].unique())
+
     
     # Check if there are census blocks not assigned to a prec_col
     if np.isnan(prec_id).any():
         # set num_regions to one less to acount for nan
         num_regions = len(prec_id) - 1
-        
+
         # Assign blocks with nan prec_col to a dummy id
         for i, _ in df[df[prec_col].isnull()]:
             df.at[i, prec_col] = 'dummy_id' + str(i)
@@ -1056,9 +1060,11 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
     # Every block is assigned and we do not need to account for nan in prec_id
     else:
         num_regions = len(prec_id)
+
     
     # reset the prec_id list
-    prec_id = list(df.prec_col.unique())
+
+    prec_id = list(df[prec_col].unique())
     
     # Initialize the precinct dataframe, which will eventually be exported
     # as the precinct shapefile

@@ -5,9 +5,23 @@ from geopy.geocoders import Nominatim
 import shapely as shp
 from shapely.geometry import Point
 import helper_tools as ht
+import os.path
+import sys
 
 # Get path to our CSV file
 csv_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/precinct_guess_Bethune_Hill_small.csv"
+
+# Check if the length is greater than 1
+if len(sys.argv) > 1:
+    # If file exists then make the csv_path the second argument
+    if os.path.isfile(sys.argv[1]):
+        csv_path = sys.argv[1]
+        print('\nUsing command argument as csv path')
+    else:
+        print('\nTerminal argument does not exist. Exiting.')
+        sys.exit()
+
+
 state = 'Virginia'
 # Initial try and except to catch improper csv_path or error exporting the
 # results of the transfer
