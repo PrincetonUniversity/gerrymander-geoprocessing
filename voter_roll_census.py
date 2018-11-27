@@ -1,15 +1,12 @@
 import time
 import pandas as pd
-#import geopandas as gpd
 import math
 import censusbatchgeocoder
-#import shapely as shp
 import warnings
 warnings.filterwarnings("ignore")
-#import helper_tools as ht
 
 # import original CSV voter file as DataFrame
-raw_path = 
+raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0.csv"
 raw_cols = ['id', 'address', 'city', 'state', 'zipcode', 'precinct']
 df_raw = pd.read_csv(raw_path, names=raw_cols, header=0)
 df_raw = df_raw.set_index('id')
@@ -34,14 +31,14 @@ start = time.time()
 last_save = time.time()
 save_gap = 60
 
-out_path = 
-missed_path = 
-remain_path = 
+out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_geocode.csv"
+missed_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_missed.csv"
+remain_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_remaining.csv"
 
 
 # Iterate through the necessary number of batches
 for batch_ix in range(batches):
-    print('Batch Index: ' + str(batch_ix) + '/' + str(batches))
+    print('\nBatch Index: ' + str(batch_ix) + '/' + str(batches))
     batch_time = time.time()
     
     if time.time() - last_save > save_gap:
@@ -49,7 +46,7 @@ for batch_ix in range(batches):
         # Save current geocoding
         df_geo.to_csv(out_path)
         last_save = time.time()
-        print('HERE')
+
         # Save remaining csv
         df_remaining = df_raw[batch_ix*batch_size:][:]
         df_remaining.to_csv(remain_path)
@@ -62,7 +59,7 @@ for batch_ix in range(batches):
         batch_end = (batch_ix + 1) * batch_size - 1
         
         # Initialize the batch dataframe
-        batch_df = df_raw.loc[batch_start:batch_end][:]
+        batch_df = df_raw.iloc[batch_start:batch_end][:]
 
         # create dummy csv to load batches into the census API wrapper
         filename = './dummy.csv'
@@ -87,10 +84,9 @@ for batch_ix in range(batches):
         
         # iterate through all the missed indexes individaully and call
         for missed in missed_ix:
-            print(missed)
             for i in range(missed[0], missed[1] + 1):
                 df_missed = pd.DataFrame()
-                df_missed = df_missed.append(df_raw.loc[i][:])
+                df_missed = df_missed.append(df_raw.iloc[i][:])
                 df_missed.to_csv(missed_path)
 
         
