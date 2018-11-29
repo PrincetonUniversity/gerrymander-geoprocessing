@@ -5,9 +5,10 @@ import censusbatchgeocoder
 import warnings
 warnings.filterwarnings("ignore")
 
+n = 9
 # import original CSV voter file as DataFrame
-raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0.csv"
-raw_cols = ['id', 'address', 'city', 'state', 'zipcode', 'precinct']
+raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + ".csv"
+raw_cols = ['id', 'city', 'state', 'zipcode', 'precinct', 'address']
 df_raw = pd.read_csv(raw_path, names=raw_cols, header=0)
 df_raw = df_raw.set_index('id')
 df_raw['address'] = df_raw['address'].str.strip()
@@ -31,9 +32,9 @@ start = time.time()
 last_save = time.time()
 save_gap = 60
 
-out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_geocode.csv"
-missed_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_missed.csv"
-remain_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_0_census_remaining.csv"
+out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_geocode.csv"
+missed_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_missed.csv"
+remain_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_remaining.csv"
 
 
 # Iterate through the necessary number of batches
@@ -81,15 +82,13 @@ for batch_ix in range(batches):
         print('Above batch did not run')
         print(batch_ix)
         missed_ix.append([batch_start, batch_end])
-        
+        df_missed = pd.DataFrame()
         # iterate through all the missed indexes individaully and call
         for missed in missed_ix:
-            for i in range(missed[0], missed[1] + 1):
-                df_missed = pd.DataFrame()
+            for i in range(missed[0], missed[1] + 1):                
                 df_missed = df_missed.append(df_raw.iloc[i][:])
-                df_missed.to_csv(missed_path)
+            df_missed.to_csv(missed_path)
 
-        
         
 # Convert geocoded dataframe into our desired geodataframe
 df_geo.to_csv(out_path)
@@ -99,5 +98,5 @@ for missed in missed_ix:
     print(missed)
     for i in range(missed[0], missed[1] + 1):
         df_missed = pd.DataFrame()
-        df_missed = df_missed.append(df_raw.loc[i][:])
+        df_missed = df_missed.append(df_raw.iloc[i][:])
         df_missed.to_csv(missed_path)
