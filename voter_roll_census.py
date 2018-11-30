@@ -3,9 +3,10 @@ import pandas as pd
 import math
 import censusbatchgeocoder
 import warnings
+import os
 warnings.filterwarnings("ignore")
 
-n = 13
+n = 14
 # import original CSV voter file as DataFrame
 raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + ".csv"
 raw_cols = ['id', 'city', 'state', 'zipcode', 'precinct', 'address']
@@ -91,4 +92,7 @@ for batch_ix in range(batches):
         
 # Convert geocoded dataframe into our desired geodataframe
 df_geo.to_csv(out_path)
+
+# Delete remaining file if finished
+os.remove(remain_path)
 
