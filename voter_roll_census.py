@@ -5,7 +5,7 @@ import censusbatchgeocoder
 import warnings
 warnings.filterwarnings("ignore")
 
-n = 9
+n = 13
 # import original CSV voter file as DataFrame
 raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + ".csv"
 raw_cols = ['id', 'city', 'state', 'zipcode', 'precinct', 'address']
@@ -88,15 +88,7 @@ for batch_ix in range(batches):
             for i in range(missed[0], missed[1] + 1):                
                 df_missed = df_missed.append(df_raw.iloc[i][:])
             df_missed.to_csv(missed_path)
-
         
 # Convert geocoded dataframe into our desired geodataframe
 df_geo.to_csv(out_path)
 
-# iterate through all the missed indexes individaully and call
-for missed in missed_ix:
-    print(missed)
-    for i in range(missed[0], missed[1] + 1):
-        df_missed = pd.DataFrame()
-        df_missed = df_missed.append(df_raw.iloc[i][:])
-        df_missed.to_csv(missed_path)
