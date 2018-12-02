@@ -6,7 +6,7 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-n = 14
+n = 7
 # import original CSV voter file as DataFrame
 raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + ".csv"
 raw_cols = ['id', 'city', 'state', 'zipcode', 'precinct', 'address']
@@ -86,8 +86,7 @@ for batch_ix in range(batches):
         df_missed = pd.DataFrame()
         # iterate through all the missed indexes individaully and call
         for missed in missed_ix:
-            for i in range(missed[0], missed[1] + 1):                
-                df_missed = df_missed.append(df_raw.iloc[i][:])
+            df_missed = df_missed.append(df_raw.iloc[missed[0]:missed[1]+1][:])
             df_missed.to_csv(missed_path)
         
 # Convert geocoded dataframe into our desired geodataframe
