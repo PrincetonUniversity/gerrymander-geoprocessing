@@ -1,9 +1,0 @@
-pandas
-pysal
-geopandas
-pillow
-numpy
-shapely
-tqdm
-matplotlib
-folium
