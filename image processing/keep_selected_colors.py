@@ -5,15 +5,17 @@ black (0,0,0)'''
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+%matplotlib inline
 
 # Input and output paths for image being manipulated
-img_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/magisterial.districts-1.jpg"
-img_path_out = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Alleghany County/magisterial_districts_keep_red.jpg"
+img_path = "/Users/wtadler/Desktop/Wills/AlexandriaCity.png"
+img_path_out = "/Users/wtadler/Desktop/Wills/out1.png"
 
 # Do you want to reduce the number of colors in the current image 
 # (HIGHLY RECOMMENDED TO SET TO A VALUE. Set to any natural number if you want
 # to reduce. Set to 0 if you do NOT want to reduce)
-reduce_colors = 15
+reduce_colors = 4
 
 # Do you convert all non-white colors to black?
 convert_non_white_to_black = False
@@ -27,20 +29,26 @@ if reduce_colors:
     conv_img = img.convert('P', palette=Image.ADAPTIVE, colors=reduce_colors)
     img = conv_img.convert('RGB')
     
+#%%    
 # display image in IPython console to show the possibly reduced image
-display(img)
-
+fig, ax = plt.subplots(figsize=(15,10))
+ax.imshow(conv_img)
+#%%
 # Print out color palettes that are indexed for selection by user
 colors = [elem[1] for elem in img.getcolors()]
+#%%
+fig, ax = plt.subplots(reduce_colors, 1, figsize=(2,4))
 for i, elem in enumerate(colors):
     print('\n\nColor ' + str(i))
     im = Image.new('RGB', (40, 40), color=elem)
     # dsplays in IPython console
-    display(im)
-    
+    ax[i].imshow(im)
+#%%
 # Ask for user input on which colors to keep
-keep_color_str = input('Enter the numbers of the colors to keep (separated by spaces if multiple): ')
+keep_color_str = input('Enter the numbers of the colors to keep (separated by spaces if multiple): ') # DO 1
 print('Thank You')
+
+#%%
 keep_color_list = [int(elem) for elem in keep_color_str.split()]
 keep_colors = [colors[elem] for elem in keep_color_list]
 

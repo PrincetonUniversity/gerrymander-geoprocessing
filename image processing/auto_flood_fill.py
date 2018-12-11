@@ -1,5 +1,7 @@
 from PIL import Image, ImageDraw
 import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
 
 def random_rgb(used_colors=[]):
     ''' This function will return a random rgb list that is not in the list
@@ -19,8 +21,8 @@ def random_rgb(used_colors=[]):
     return rgb
 
 # Input and output paths for image being manipulated
-img_path = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Staunton City/Capture.PNG'
-img_path_out = '/home/hannah/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts/Staunton City/Staunton_image.png'
+img_path = '/Users/wtadler/Desktop/Wills/out1.png'
+img_path_out = '/Users/wtadler/Desktop/Wills/out2.png'
 
 # Define threshold for flood fill. This threshold is the 1-norm to determine
 # how far away RGB values can be to be considered the same color. 0 means
@@ -43,7 +45,8 @@ if reduce_colors:
     img = conv_img.convert('RGB')
 
 # display image in IPython console to show the possibly reduced image
-display(img)
+fig, ax = plt.subplots(figsize=(15,10))
+ax.imshow(conv_img)
 
 # Print out color palettes that are indexed for selection by user
 colors = [elem[1] for elem in img.getcolors()]

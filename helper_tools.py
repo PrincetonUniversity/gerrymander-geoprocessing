@@ -16,9 +16,11 @@ from collections import Counter
 import csv
 import operator
 import datetime
-from titlecase import titlecase
+# from titlecase import titlecase
 import shutil
 import random
+from tqdm.autonotebook import tqdm
+
 
 def generate_bounding_frame(df, file_str):
     ''' Generates and saves a bounding frame for the geometries in a dataframe
@@ -56,7 +58,7 @@ def generate_bounding_frame(df, file_str):
     
     return frame
 
-def cropped_bordered_image(img_path):
+def cropped_bordered_image(img):
     ''' Given an image with a border of one color, returns an image with the
     border cropped off.  Works with images in numpy array form.
     
@@ -67,7 +69,7 @@ def cropped_bordered_image(img_path):
         file path to the cropped image
         modified image array with border cropped off
     '''
-    img = Image.open(img_path)
+    # img = Image.open(img_path)
     img_arr = np.asarray(img)
     
     # calcluate extents of image
@@ -100,14 +102,14 @@ def cropped_bordered_image(img_path):
     
 
     # Save new image as 'oldname cropped'
-    ext = img_path.split('.')[-1]
-    filename=  '.'.join(img_path.split('.')[:-1]) + ' cropped'
-    new_name = filename + '.' + ext
+    # ext = img_path.split('.')[-1]
+    # filename=  '.'.join(img_path.split('.')[:-1]) + ' cropped'
+    # new_name = filename + '.' + ext
     cropped_img = Image.fromarray(img_arr[top+1:bottom, left+1:right])
-    cropped_img.save(new_name)
+    # cropped_img.save(new_name)
     
     # crop and return array
-    return new_name
+    return cropped_img
 
 def real_rook_contiguity(df, geo_id = 'geometry',
                          nbr_id='neighbors',struct_type='list'):
@@ -710,35 +712,35 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
             continue
 
     # Create backup if path already exists
-    if os.path.exists(file_path):
-        backup_dir = '/'.join(file_path.split('/')[:-1]) + '/Backup'
-
-        # Create backup folder if it does not already exist
-        if not os.path.exists(backup_dir):
-            os.mkdir(backup_dir)
-
-        # Get current date
-        t = datetime.datetime.now()
-        d = str(t.month) + '-' + str(t.day) + '-' + str(t.year) + '_' + \
-            str(t.hour) + '-' + str(t.minute)        
-        
-        # Save old file to backup folder
-        filename = file_path.split('/')[-1]
-        file_no_ext = '.'.join(filename.split('.')[:-1])
-        file_ext = filename.split('.')[-1]
-        backup_path = backup_dir + '/' + file_no_ext + '_' + d + '.' + file_ext
-        
-        # load in backup dataframe
-        delete_cpg(file_path)
-        backup_df = gpd.read_file(file_path)
-        backup_df.to_file(backup_path)
-        
-        # Save the new file to the folder
-        df.to_file(file_path)
-
-    # Save file if the file does not already exist
-    else:
-        df.to_file(file_path)
+    # if os.path.exists(file_path):
+    #     backup_dir = '/'.join(file_path.split('/')[:-1]) + '/Backup'
+    # 
+    #     # Create backup folder if it does not already exist
+    #     if not os.path.exists(backup_dir):
+    #         os.mkdir(backup_dir)
+    # 
+    #     # Get current date
+    #     t = datetime.datetime.now()
+    #     d = str(t.month) + '-' + str(t.day) + '-' + str(t.year) + '_' + \
+    #         str(t.hour) + '-' + str(t.minute)        
+    # 
+    #     # Save old file to backup folder
+    #     filename = file_path.split('/')[-1]
+    #     file_no_ext = '.'.join(filename.split('.')[:-1])
+    #     file_ext = filename.split('.')[-1]
+    #     backup_path = backup_dir + '/' + file_no_ext + '_' + d + '.' + file_ext
+    # 
+    #     # load in backup dataframe
+    #     delete_cpg(file_path)
+    #     backup_df = gpd.read_file(file_path)
+    #     backup_df.to_file(backup_path)
+    # 
+    #     # Save the new file to the folder
+    #     df.to_file(file_path)
+    # 
+    # # Save file if the file does not already exist
+    # else:
+    df.to_file(file_path)
     
 def default_path(path, local, direc_path):
     '''If the path is a keyword, the path to a designated shapefile will be
@@ -832,7 +834,12 @@ def read_csv_to_df(csv_path, head, col_names, list_cols):
         The csv dataframe to run batching process through
     '''
     # Read in csv as df
-    csv_df = pd.read_csv(csv_path, header=head, names=col_names)
+    # csv_path = "/Users/wtadler/Desktop/Wills/Alexandria_City_Conversion.csv"
+    # head = 1
+    # col_names = ['Locality', 'Num Regions', 'Census Path', 'Out Path',\
+    #              'Image Path', 'Colors']
+
+    csv_df = pd.read_csv(csv_path, header=1, index_col=False, names=col_names)
     
     # Convert comma delimited string columns to lists
     for col in list_cols:
@@ -841,7 +848,7 @@ def read_csv_to_df(csv_path, head, col_names, list_cols):
             
     return csv_df
 
-def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
+def shp_from_sampling(local, num_regions, shape_path, out_path, img, \
                       colors=0, sample_limit=500):
     ''' Generates a precinct level shapefile from census block data and an 
     image cropped to a locality's extents. Also updates the attribute table in
@@ -859,7 +866,7 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
         Number of census blocks in the county
     '''        
     # Convert image to array, color reducing if specified
-    img = Image.open(img_path)
+    # img = Image.open(img_path)
     if colors > 0:
         img = reduce_colors(img, colors)
     img_arr = np.asarray(img)
@@ -885,7 +892,8 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     shp_ymin = bounds[1]
 
     # Iterate through each polygon and assign its most common color
-    for i, _ in df.iterrows():
+    print('Assigning each block...')
+    for i in tqdm(range(len(df))):
         
         # Get current polygon
         poly = df.at[i, 'geometry']
@@ -931,9 +939,9 @@ def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
     save_shapefile(df, shape_path, cols_to_exclude=['color'])
    
     # Save precinct shapefile    
-    generate_precinct_shp(local, shape_path, out_path, 'region')
+    df_prec = generate_precinct_shp(local, shape_path, out_path, 'region')
         
-    return len(df)
+    return df, df_prec
 
 def generate_precinct_shp(local, shape_path, out_path, prec_col):    
     ''' Generates the final precinct level shapefile from census block data
@@ -1006,7 +1014,7 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
     df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
     save_shapefile(df_prec, out_path)
         
-    return len(df)
+    return df_prec
 
 def join_list(l, delimiter):
     ''' Takes list and returns a string containing the elements of the list
