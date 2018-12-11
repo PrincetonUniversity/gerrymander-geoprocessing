@@ -1,0 +1,10 @@
+pandas
+pysal
+geopandas
+pillow
+numpy
+shapely
+shutil
+tqdm
+matplotlib
+folium
