@@ -6,7 +6,7 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-n = 0
+n = 2
 
 # name of path to save census geocoded results to
 out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/missed_" + str(n) + "_census_geocode.csv"
@@ -17,7 +17,6 @@ temp_name = './dummy.csv'
 # import original CSV voter file as DataFrame
 raw_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/missed_" + str(n) + ".csv"
 raw_cols = ['id', 'city', 'state', 'zipcode', 'precinct', 'address']
-raw_cols = ['id', 'address', 'city', 'precinct', 'state', 'zipcode']
 df_raw = pd.read_csv(raw_path, names=raw_cols, header=0)
 df_raw = df_raw.set_index('id')
 df_raw['address'] = df_raw['address'].str.strip()
@@ -44,8 +43,8 @@ last_save = start
 save_gap = 60
 
 # Let missed path and remain path be 
-missed_path = '.'.join(out_path.split('.')[:-1]) + '_missed_csv'
-remain_path = '.'.join(out_path.split('.')[:-1]) + '_remain_csv'
+missed_path = '.'.join(out_path.split('.')[:-1]) + '_missed.csv'
+remain_path = '.'.join(out_path.split('.')[:-1]) + '_remain.csv'
 
 def tryBatch(batch_start, batch_end, missed_ix, df_raw, df_geo, temp_csv_name): 
     ''' Executes a batch of addresses through the census geocoder. Dataframe
