@@ -1,12 +1,11 @@
 import pandas as pd
-import numpy as np
-# Define path to CSV
+from titlecase import titlecase
 
 # initialize path to load csv 
-csv_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct names and changes/precinct_changes_between_election_test2.csv"
+csv_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct_changes_between_election_test.csv"
 
 # initizize path to save csv
-out_path =  "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct names and changes/precinct_changes_between_election_result.csv"
+out_path =  "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/precinct_changes_between_election_result.csv"
 
 # initialize list of columns from csv
 name_list = ['Name', 'Path', 'Locality', 'Precinct', 'Compare']
@@ -33,6 +32,8 @@ for ix, row in csv_df.iterrows():
     
     # Drop duplicates and clean strings
     df = df.loc[:, [row.Locality, row.Precinct]].drop_duplicates()
+    df[row.Precinct] = df[row.Precinct].apply(lambda x: titlecase(x))
+    df[row.Locality] = df[row.Locality].apply(lambda x: titlecase(x))
     df[row.Precinct] = df[row.Precinct].str.strip()
     df[row.Locality] = df[row.Locality].str.strip()
     
@@ -95,4 +96,5 @@ for ix, row in csv_df.iterrows():
                     change_df.at[r, 'Only in A'] = ', '.join(A_not_B)
                     change_df.at[r, 'Only in B'] = ', '.join(B_not_A)
                       
-change_df.to_csv(out_path, index=False)
+# save as a tsv
+#change_df.to_csv(out_path, index=False, sep='\t')
