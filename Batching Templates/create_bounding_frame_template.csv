@@ -1,2 +1,2 @@
-Directory Path	G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts	
-Locality Name (match with folder name)	Census Shape Path (Default:  census_block)	Out Path (Default: bounding_frame)
+Directory Path,(paste path to folder with county folders here)		
+Locality Name (match with folder name),Census Shape Path (Default: census_block),Out Path (Default: bounding_frame)
