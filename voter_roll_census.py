@@ -5,8 +5,8 @@ import censusbatchgeocoder
 import warnings
 import os
 warnings.filterwarnings("ignore")
-
-for n in range (1,137):
+redo = [0,1,3,4,6,8,9,21,28,34,36]
+for n in redo:
     # import original CSV voter file as DataFrame
     raw_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + ".csv"
     df_raw = pd.read_csv(raw_path, header=0)
@@ -33,9 +33,9 @@ for n in range (1,137):
     last_save = time.time()
     save_gap = 60
     
-    out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_geocode.csv"
-    missed_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_missed.csv"
-    remain_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_remaining.csv"
+    out_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_geocode.csv"
+    missed_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_missed.csv"
+    remain_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_remaining.csv"
     
     
     # Iterate through the necessary number of batches

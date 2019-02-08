@@ -5,7 +5,7 @@ import os.path
 import sys
 
 # Get path to our CSV file
-csv_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/CSV/Misc CSV/blocks_to_precincts_10_24.csv"
+csv_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/CSV/Blocks to Precincts/ blocks_to_precincts_02_08.csv"
 
 # Check if the length is greater than 1
 if len(sys.argv) > 1:
