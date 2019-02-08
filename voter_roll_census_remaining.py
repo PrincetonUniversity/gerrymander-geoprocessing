@@ -6,12 +6,15 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-for n in range (1,137):
+remaining = [36,38,40,45,48,53,54,55,71,72,73,74,75]
+missed = [0,1,4,6,8,9,21]
+for n in missed:
+    print(n)
     # import original CSV voter file as DataFrame
-    raw_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + ".csv"
+    raw_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_geocode_missed.csv"
+    geo_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_geocode.csv"
     df_raw = pd.read_csv(raw_path, header=0)
-    df_raw = df_raw.rename(columns={'Unnamed: 0':'id','RESIDENTIAL_ADDRESS1':'address','RESIDENTIAL_CITY':'city','RESIDENTIAL_STATE':'state','RESIDENTIAL_ZIP':'zipcode','PRECINCT_NAME':'precinct'})
-    df_raw = df_raw.set_index('id')
+    df_raw = df_raw.rename(columns= {'Unnamed: 0':'id'})
     df_raw['address'] = df_raw['address'].str.strip()
     
     # Define how large and many batches to use. Maximum batch size for cenus 
@@ -24,7 +27,7 @@ for n in range (1,137):
     missed_ix = []
     
     # initialize geocoded dataframe
-    df_geo =  pd.DataFrame()
+    df_geo =  pd.read_csv(geo_path)
     df_missed = pd.DataFrame()
     df_remaining = pd.DataFrame()
     
@@ -33,9 +36,9 @@ for n in range (1,137):
     last_save = time.time()
     save_gap = 60
     
-    out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_geocode.csv"
-    missed_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_missed.csv"
-    remain_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/PA_voter_roll_" + str(n) + "_census_remaining.csv"
+    out_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_geocode.csv"
+    missed_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_missed_again.csv"
+    remain_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/Voter Roll/OH_voter_roll_" + str(n) + "_census_remaining.csv"
     
     
     # Iterate through the necessary number of batches
@@ -94,4 +97,3 @@ for n in range (1,137):
     
     # Delete remaining file if finished
     os.remove(remain_path)
-
