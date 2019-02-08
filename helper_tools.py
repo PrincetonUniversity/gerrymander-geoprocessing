@@ -980,11 +980,11 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
             poly = Polygon(poly_coords)
             # If poly is within the geometry then no neighbors are contained
             if not geometry.contains(poly):
-                print('Contains Another : ' + str(int(elem)))
+                print('Contains Another : ' + str(elem))
         
         # Precinct is noncontiguous
         else:
-            print('\nNoncontiguous: ' + str(int(elem)))
+            print('\nNoncontiguous: ' + str(elem))
             print('Num Non-Contiguous Pieces to Fix: ' + \
                   str(len(geometry.geoms) - 1))
             
@@ -999,7 +999,7 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
                     # If poly is within the geometry then no neighbors are 
                     # contained
                     if not geometry.contains(poly):
-                        print('\nContains Another : ' + str(int(elem)))
+                        print('\nContains Another : ' + str(elem))
                         
     # Set locality name for each precinct
     df_prec['locality'] = local
