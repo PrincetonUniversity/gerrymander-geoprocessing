@@ -7,7 +7,7 @@ import os
 warnings.filterwarnings("ignore")
 
 remaining = [36,38,40,45,48,53,54,55,71,72,73,74,75]
-missed = [0,1,4,6,8,9,21]
+missed = [1,3,]
 for n in missed:
     print(n)
     # import original CSV voter file as DataFrame
