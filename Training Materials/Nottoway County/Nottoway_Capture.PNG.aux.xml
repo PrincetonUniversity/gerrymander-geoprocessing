@@ -1,0 +1,73 @@
+<PAMDataset>
+  <SRS>GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]]</SRS>
+  <Metadata domain="IMAGE_STRUCTURE">
+    <MDI key="INTERLEAVE">PIXEL</MDI>
+  </Metadata>
+  <Metadata domain="xml:ESRI" format="xml">
+    <GeodataXform xsi:type="typens:PolynomialXform" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:typens="http://www.esri.com/schemas/ArcGIS/10.6">
+      <PolynomialOrder>1</PolynomialOrder>
+      <SpatialReference xsi:type="typens:GeographicCoordinateSystem">
+        <WKT>GEOGCS["GCS_North_American_1983",DATUM["D_North_American_1983",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433],AUTHORITY["EPSG",4269]]</WKT>
+        <XOrigin>-400</XOrigin>
+        <YOrigin>-400</YOrigin>
+        <XYScale>11258999068426.24</XYScale>
+        <ZOrigin>-100000</ZOrigin>
+        <ZScale>10000</ZScale>
+        <MOrigin>-100000</MOrigin>
+        <MScale>10000</MScale>
+        <XYTolerance>8.9831528411952133e-09</XYTolerance>
+        <ZTolerance>0.001</ZTolerance>
+        <MTolerance>0.001</MTolerance>
+        <HighPrecision>true</HighPrecision>
+        <LeftLongitude>-180</LeftLongitude>
+        <WKID>4269</WKID>
+        <LatestWKID>4269</LatestWKID>
+      </SpatialReference>
+      <CoeffX xsi:type="typens:ArrayOfDouble">
+        <Double>-78.283745115488273</Double>
+        <Double>0.00059289261769353285</Double>
+        <Double>1.2825910135407521e-06</Double>
+      </CoeffX>
+      <CoeffY xsi:type="typens:ArrayOfDouble">
+        <Double>37.405846675506382</Double>
+        <Double>-1.2825910135407521e-06</Double>
+        <Double>0.00059289261769353285</Double>
+      </CoeffY>
+      <InverseCoeffX xsi:type="typens:ArrayOfDouble">
+        <Double>132172.83410371174</Double>
+        <Double>1686.6381709125178</Double>
+        <Double>-3.6486657053050253</Double>
+      </InverseCoeffX>
+      <InverseCoeffY xsi:type="typens:ArrayOfDouble">
+        <Double>-62804.497602124407</Double>
+        <Double>3.6486657053055143</Double>
+        <Double>1686.6381709125178</Double>
+      </InverseCoeffY>
+      <Name />
+    </GeodataXform>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">255</MDI>
+      <MDI key="STATISTICS_MEAN">222.09776785714</MDI>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_STDDEV">67.622429938089</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="2">
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">255</MDI>
+      <MDI key="STATISTICS_MEAN">214.22529761905</MDI>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_STDDEV">71.811680078834</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="3">
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">255</MDI>
+      <MDI key="STATISTICS_MEAN">202.45279761905</MDI>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_STDDEV">92.38695942575</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
