@@ -28,7 +28,7 @@ if len(sys.argv) > 1:
 # Import CSV elements into dataframe
 csv_col = ['Locality', 'In_Path', 'Out_Path', 'Dissolve_Attribute']
 csv_list = []
-csv_df = ht.read_csv_to_df(csv_path, 0, csv_col, csv_list)
+csv_df = fm.read_csv_to_df(csv_path, 0, csv_col, csv_list)
 
 # Dissolve boundaries for each locality in the batch
 for i, row in csv_df.iterrows():
