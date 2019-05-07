@@ -182,3 +182,69 @@ def fraction_shared_perim(nbrs, indices, perim):
     shared_perim = sum([nbrs[key] for key in nbrs if key in indices])
     
     return shared_perim/perim
+
+################################################################################
+
+# NEW 
+
+def check_contiguity_and_contained(df, id_attribute):
+    ''' Identify which geometries in a shapefile are noncontiguous and which
+    geometries contain another geometries. Just prints when an error is found.
+
+    Arguments:
+        df: geodatafram of shapefile to check
+        id_attribute: attribute used to identify geometries during check
+
+    Output:
+        Lists of two lists. First list, which geometries are noncontiguous. 
+        Second list: which geometries contain another.
+        Will use print statements to display noncontiguous geometries
+    '''
+
+    # initialize dictionary that will refer to errors
+    contains = []
+    noncontig = []
+    # Check that identification attribute is actually an attribute
+    if id_attribute not in df.columns:
+        print('Identification attribute is not an attribute of the shapefile.')
+        print('Contiguity check aborted')
+        return
+
+    # Iterate through each of the geometries
+    for i, row in df.iterrows():
+        # Define the geometry
+        geo = row['geometry']
+
+        # Check if geometry contains another geometry
+        if geo.type == 'Polygon':
+            # Create a polygon from its exterior coordinates. If this is
+            # contained by the geometry then we now that the geometry encircles
+            # anoterh
+
+            # Create a polygon from the exterior coordinates. If there is no
+            # "hole" in the geometry, then the generated polygon will be 
+            # contained by the geometry
+            poly = Polygon(list(geo.exterior.coords))
+            if not geo.contains(poly):
+                contains.append(row[id_attribute])
+                print('Contains Another: ' + row[id_attribute])
+
+        # Check if geometry is noncontiguous
+        else:
+            print('\nNoncontiguous: ' + row[id_attribute])
+            print('Num Non-Contiguous Pieces to Fix: ' + \
+                    str(len(geo.geoms) - 1))
+            noncontig.append(row[id_attribute])
+
+            # Check if any of the MultiPolygons contain another geometry
+
+            for sub_polygon in geometry.geoms:
+                # Create a polygon from the exterior coordinates. If there is no
+                # "hole" in the geometry, then the generated polygon will be 
+                # contained by the geometry
+                poly = Polygon(list(sub_polygon.exterior.coords))
+                if not sub_polygon.contains(poly):
+                    contains.append(row[id_attribute])
+                    print('Contains Another: ' + row[id_attribute])
+
+    return [noncontig, contains]
