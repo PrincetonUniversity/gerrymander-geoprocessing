@@ -4,6 +4,9 @@ also check for contiguity after boundaries have been dissolved.
 
 Can perform for a batch
 '''
+import os, sys
+os.chdir('..')
+sys.path.append(os.getcwd())
 
 import pandas as pd
 import helper_tools.shp_manipulation as sm
