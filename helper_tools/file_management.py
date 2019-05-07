@@ -2,6 +2,10 @@
 Helper methods to make cumbersome file management tasks easier
 """
 
+import os
+import geopandas as gpd
+import datetime
+
 def delete_cpg(path):
     '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
     encodes a shapefile and incorrectly saves the CPG. Before running most

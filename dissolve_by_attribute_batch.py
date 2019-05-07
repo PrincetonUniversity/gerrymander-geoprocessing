@@ -6,14 +6,14 @@ Can perform for a batch
 '''
 
 import pandas as pd
-import shapefile_manipulation as sm
-import shapefile_calculations as sc
-import file_management as fm
+import helper_tools.shp_manipulation as sm
+import helper_tools.shp_calculations as sc
+import helper_tools.file_management as fm
 import os.path
 import sys
 
 # Get path to our CSV file
-csv_path = "/Volumes/GoogleDrive/Team Drives/princeton_gerrymandering_project/mapping/OH/CSV/Blocks to Precincts/ blocks_to_precincts_02_08.csv"
+csv_path = ""
 
 # Check if csv path has been entered in command line argument
 if len(sys.argv) > 1:

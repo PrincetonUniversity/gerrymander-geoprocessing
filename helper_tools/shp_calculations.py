@@ -2,6 +2,9 @@
 Helper methods to calculate properties within shapefiles
 """
 
+from shapely.geometry import Polygon
+from shapely.geometry import Point
+
 def real_rook_contiguity(df, geo_id = 'geometry',
                          nbr_id='neighbors',struct_type='list'):
     ''' Generates neighbor list using rook contiguity for a geodataframe.
@@ -238,7 +241,7 @@ def check_contiguity_and_contained(df, id_attribute):
 
             # Check if any of the MultiPolygons contain another geometry
 
-            for sub_polygon in geometry.geoms:
+            for sub_polygon in geo.geoms:
                 # Create a polygon from the exterior coordinates. If there is no
                 # "hole" in the geometry, then the generated polygon will be 
                 # contained by the geometry

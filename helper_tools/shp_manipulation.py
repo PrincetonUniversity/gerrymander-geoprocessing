@@ -2,6 +2,13 @@
 Helper methods to make changes to shapefiles
 """
 
+import geopandas as gpd
+import pandas as pd
+import shapely as shp
+
+# import helper tools as if running from parent directory
+from helper_tools.file_management import delete_cpg
+
 def generate_bounding_frame(df, file_str):
     ''' Generates and saves a bounding frame for the geometries in a dataframe
     to assist with autocropping.
@@ -38,7 +45,7 @@ def generate_bounding_frame(df, file_str):
     
     return frame
 
-    def merge_fully_contained(df, geo_id = 'geometry',
+def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
     '''If any geometry is contained entirely within another geometry, this
     function merges it into the larger geometry.  Slightly distinct from the
@@ -406,7 +413,7 @@ def dissolve(in_path, dissolve_attribute):
     dissolve_names = list(df[dissolve_attribute].unique())
     
     # Create dataframe for dissolved shapefile
-    df_dissolve = pd.DataFrame(columns=['precinct', 'geometry', 'locality'])
+    df_dissolve = pd.DataFrame(columns=[dissolve_attribute, 'geometry'])
 
     # Iterate through each unique element in the dissolve_attribute column
     for i, elem in enumerate(dissolve_names):
