@@ -14,8 +14,8 @@ census_shape_folder = 'G:/Team Drives/princeton_gerrymandering_project/' \
 state = 'VA'
 
 # Define census name and path
-census_filename = '/tabblock2010_51_pophu.shp'
-census_shape_path = census_shape_folder + state + census_filename
+census_filename = 'tabblock2010_51_pophu.shp'
+census_shape_path = census_shape_folder + state + '/' + census_filename
 
 # Define path to parent directory of locality folders
 state_shape_folder = "G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Precinct Shapefile Collection/Virginia precincts"

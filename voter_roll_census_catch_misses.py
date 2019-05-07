@@ -6,7 +6,7 @@ import warnings
 import os
 warnings.filterwarnings("ignore")
 
-n = 2
+n = 7
 
 # name of path to save census geocoded results to
 out_path = "G:/Team Drives/princeton_gerrymandering_project/mapping/PA/Voter Roll/missed_" + str(n) + "_census_geocode.csv"
