@@ -1,0 +1,2 @@
+Directory that contains county folders,(paste path to folder with county folders here)							
+Locality Name (List every locality to match the folder names),Interpolation Type,Aggregate On,To Interpolate DF path,To Interpolate Columns,From Interpolate DF path,From Interpolate Cols,Round Values (1 if yes. else no)  (separate with comma no spaces. Match order with To Interpolate col),Preserve Totals (1 if yes. Else no. ONLY Applies when Round Value is set to 1) 

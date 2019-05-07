@@ -1,2 +1,0 @@
-Directory Path,(paste path to folder with locality folders here),Base Shape Path,(paste path to shapefile with geometries to be removed)
-Locality Name (match with folder name),Remove Shape Path (Default: census_block; precinct;  precinct_final),Out Path (default usually precinct_final),Keep Ratio

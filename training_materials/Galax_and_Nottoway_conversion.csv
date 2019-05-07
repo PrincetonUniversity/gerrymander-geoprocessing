@@ -1,0 +1,4 @@
+Directory that contains county folders,(paste the path the the folder this file Is in),,,,
+Locality Name,Number of Regions,Census Shape Path (Default: census_block),Out Folder,Bounded or Cropped Image Path,Colors
+Galax City,3,census_block,precinct,(paste path to file Galax_Capture.PNG),0
+Nottoway County,9,census_block,precinct,(paste path to file Nottoway_Capture.PNG),0
