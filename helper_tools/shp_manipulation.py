@@ -5,45 +5,10 @@ Helper methods to make changes to shapefiles
 import geopandas as gpd
 import pandas as pd
 import shapely as shp
+from shapely.geometry import Polygon
 
 # import helper tools as if running from parent directory
 from helper_tools.file_management import delete_cpg
-
-def generate_bounding_frame(df, file_str):
-    ''' Generates and saves a bounding frame for the geometries in a dataframe
-    to assist with autocropping.
-    
-    Arguments:
-        df: geodataframe with geometries
-        file_str: file path for bounding frame shapefile
-        
-    Output:
-        Geometry of bounding frame (also saves shapefile)
-    '''
-    # Calculate boundaries of the geodataframe using union of geometries
-    # takes form (min_x, min_y, max_x, max_y)
-    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
-    xmin = bounds[0]
-    xmax = bounds[2]
-    xlen = xmax-xmin
-    ymin = bounds[1]
-    ymax = bounds[3]
-    ylen = ymax-ymin
-    
-    # generate picture frame shape
-    in_frame = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
-    out_frame = Polygon([(xmin-10*xlen, ymin-10*ylen),\
-                         (xmax+10*xlen, ymin-10*ylen),\
-                         (xmax+10*xlen, ymax+10*ylen),\
-                         (xmin-10*xlen, ymax+10*ylen)])
-    frame = out_frame.symmetric_difference(in_frame)
-    
-    # create dataframe and save to shapefile
-    out_df = gpd.GeoDataFrame()
-    out_df['geometry'] = [frame]
-    save_shapefile(out_df, file_str)
-    
-    return frame
 
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
@@ -423,3 +388,38 @@ def dissolve(df, dissolve_attribute):
         df_dissolve.at[i, dissolve_attribute] = elem
 
     return gpd.GeoDataFrame(df_dissolve, geometry='geometry')
+
+def generate_bounding_frame(df):
+    ''' Generates a bounding frame arouund the extents of a shapefile
+    
+    Arguments:
+        df: geodataframe of shapefile to create bounding frame around
+        
+    Output:
+        Geometry of bounding frame (also saves shapefile)
+        frame_df: geodataframe to the bounding frame (only one geometry)
+    '''
+    # Calculate boundaries of the geodataframe using union of geometries
+    # takes form (min_x, min_y, max_x, max_y)
+    bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
+    xmin = bounds[0]
+    xmax = bounds[2]
+    xlen = xmax-xmin
+    ymin = bounds[1]
+    ymax = bounds[3]
+    ylen = ymax-ymin
+    
+    # Generate frame geometry. The multiplier of 10 is arbitrary. We just need
+    # it to be large enough that when exporting in GIS over an image it is the
+    # only color on the border of the image it is overlaid on top of
+    in_frame = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
+    out_frame = Polygon([(xmin-10*xlen, ymin-10*ylen),\
+                         (xmax+10*xlen, ymin-10*ylen),\
+                         (xmax+10*xlen, ymax+10*ylen),\
+                         (xmin-10*xlen, ymax+10*ylen)])
+    frame = out_frame.symmetric_difference(in_frame)
+
+    # Convert frame polygon into GeoDataFrame
+    frame_df = gpd.GeoDataFrame()
+    frame_df['geometry'] = [frame]
+    return frame_df
