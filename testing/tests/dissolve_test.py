@@ -14,11 +14,12 @@ def simple_grid_test():
 	function is working properly for this small example '''
 
 	# load in correctly dissolved shapefile
-	correct_path = os.getcwd()  + "/testing/test_data/dissolved_simple_correct.shp"
-	correct =  gpd.read_file(correct_path)
+	folder= "/testing/test_data/dissolve/"
+	correct_path = os.getcwd()  + folder + "dissolved_simple_correct.shp"
+	correct = fm.load_shapefile(correct_path)
 
 	# load in initial data and apply dissolve function
-	input_path = os.getcwd() + "/testing/test_data/test_dissolve_simple.shp"
+	input_path = os.getcwd() + folder + "test_dissolve_simple.shp"
 	df = fm.load_shapefile(input_path)
 	test = sm.dissolve(df, 'attribute')
 

@@ -13,8 +13,9 @@ def noncontiguous_test():
 	noncontigous element exists'''
 
 	# load in testing shapefile
-	input_path = os.getcwd()  + "/testing/test_data/test_noncontiguous.shp"
-	df = gpd.read_file(input_path)
+	folder = "/testing/test_data/noncontiguous_and_contained/"
+	input_path = os.getcwd()  + folder + "test_noncontiguous.shp"
+	df = fm.load_shapefile(input_path)
 
 	if len(sc.check_contiguity_and_contained(df, 'attribute')[0]) == 0:
 		return False
@@ -25,8 +26,9 @@ def contained_test():
 	noncontigous element exists'''
 
 	# load in testing shapefile
-	input_path = os.getcwd()  + "/testing/test_data/test_contained.shp"
-	df = gpd.read_file(input_path)
+	folder = "/testing/test_data/noncontiguous_and_contained/"
+	input_path = os.getcwd()  + folder + "test_contained.shp"
+	df = fm.load_shapefile(input_path)
 
 	if len(sc.check_contiguity_and_contained(df, 'attribute')[1]) == 0:
 		return False
