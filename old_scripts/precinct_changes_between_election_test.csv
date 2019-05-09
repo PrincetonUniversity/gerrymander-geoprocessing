@@ -1,3 +1,0 @@
-Name,Path,Locality Column Name,Precinct Column Name,Compare With (Names column. Separate w/ comma w/o space)
-2017 General,G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Election Results/2017 November General.csv,LocalityName,PrecinctName,2016 General
-2016 General,G:/Team Drives/princeton_gerrymandering_project/mapping/VA/Election Results/2016 November General.csv,LocalityName,PrecinctName,
