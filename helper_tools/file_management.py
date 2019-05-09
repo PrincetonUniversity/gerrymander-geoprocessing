@@ -7,6 +7,9 @@ import geopandas as gpd
 import pandas as pd
 import datetime
 
+# import helper tools as if running from parent directory
+from helper_tools.shp_manipulation import set_CRS
+
 def delete_cpg(path):
     '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
     encodes a shapefile and incorrectly saves the CPG. Before running most
@@ -55,6 +58,10 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
             actual_cols_to_exclude.append(elem)
             
     df = df.drop(columns=actual_cols_to_exclude)
+
+    # Add Coordinate Reference System if one does not already exist
+    if df.crs == {}:
+        df = sm.set_CRS(df)
     
     # Attempt to fix object types in dataframe by converting to float if
     # possible
