@@ -21,6 +21,20 @@ def delete_cpg(path):
     cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
     if os.path.exists(cpg_path):
         os.remove(cpg_path)
+
+def load_shapefile(file_path):
+    '''Loads shapefile given a path. Also deletes the CPG file to ensure an
+    encoding error is not raised
+
+    Argument:
+        file_path: path to .shp file to load
+
+    Output:
+        df: geodataframe that is being loaded
+    '''
+    delete_cpg(file_path)
+    return gpd.read_file(file_path)
+
         
 def save_shapefile(df, file_path, cols_to_exclude=[]):
     ''' Saves a geodataframe to shapefile, deletes columns specified by user.

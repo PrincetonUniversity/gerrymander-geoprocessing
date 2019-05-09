@@ -41,11 +41,12 @@ for i, row in csv_df.iterrows():
         
         # Print Locality Name to see batch progress
         print('\n' + row['Locality'])
-        
-        # Generate dissolved shapefile
-        geo_df = sm.dissolve(row['In_Path'], row['Dissolve_Attribute'])
 
-        # Check for noncontiguous and contained geometries
+        # load and dissolve shapefile
+        geo_df = load_shapefile(row['In_Path'])
+        geo_df = sm.dissolve(geo_df, row['Dissolve_Attribute'])
+
+        # Print potential errors
         sc.check_contiguity_and_contained(geo_df, row['Dissolve_Attribute'])
 
         # Save shapefile

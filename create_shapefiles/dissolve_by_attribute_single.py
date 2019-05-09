@@ -26,9 +26,10 @@ dissolve_attribute = "attribute"
 
 ''' Code '''
 #  Generate dissolved shapefile
-geo_df = sm.dissolve(in_path, dissolve_attribute)
+geo_df = load_shapefile(row['In_Path'])
+geo_df = sm.dissolve(geo_df, dissolve_attribute)
 
-# Check for noncontiguous and contained geometries
+# Print potential errors
 sc.check_contiguity_and_contained(geo_df, dissolve_attribute)
 
 # Save shapefile
