@@ -37,11 +37,11 @@ contained = contained_test()
 
 print('\n-------------------------------------\n')
 if noncontiguous == True:
-	print('Simple dissolve test PASSED')
+	print('Noncontiguous test PASSED')
 else:
-	print('Simple dissolve test FAILED')
+	print('Noncontiguous test FAILED')
 
 if contained == True:
-	print('Simple dissolve test PASSED')
+	print('Contained test PASSED')
 else:
-	print('Simple dissolve test FAILED')
+	print('Contained test FAILED')

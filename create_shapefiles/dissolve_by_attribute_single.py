@@ -20,13 +20,13 @@ in_path: full path to input shapefile to be dissolved
 out_path: full path to save created shapefile
 disolve_attribute: attribute to dissolve boundaries by
 '''
-in_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/testing/debug/input_contained.shp"
+in_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/testing/debug/test_contained.shp"
 out_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/testing/debug/test_contained.shp"
 dissolve_attribute = "attribute"
 
 ''' Code '''
 #  Generate dissolved shapefile
-geo_df = load_shapefile(row['In_Path'])
+geo_df = fm.load_shapefile(in_path)
 geo_df = sm.dissolve(geo_df, dissolve_attribute)
 
 # Print potential errors

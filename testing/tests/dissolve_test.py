@@ -7,6 +7,7 @@ import geopandas as gpd
 os.chdir('../..')
 sys.path.append(os.getcwd())
 import helper_tools.shp_manipulation as sm
+import helper_tools.file_management as fm
 
 def simple_grid_test():
 	''' 3 x 3 grid that should dissolve into three columns. Check if dissolve
@@ -18,7 +19,8 @@ def simple_grid_test():
 
 	# load in initial data and apply dissolve function
 	input_path = os.getcwd() + "/testing/test_data/test_dissolve_simple.shp"
-	test = sm.dissolve(input_path, 'attribute')
+	df = fm.load_shapefile(input_path)
+	test = sm.dissolve(df, 'attribute')
 
 	# Number of matches
 	matches = 0

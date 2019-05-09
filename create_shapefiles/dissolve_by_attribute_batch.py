@@ -43,7 +43,7 @@ for i, row in csv_df.iterrows():
         print('\n' + row['Locality'])
 
         # load and dissolve shapefile
-        geo_df = load_shapefile(row['In_Path'])
+        geo_df = fm.load_shapefile(row['In_Path'])
         geo_df = sm.dissolve(geo_df, row['Dissolve_Attribute'])
 
         # Print potential errors

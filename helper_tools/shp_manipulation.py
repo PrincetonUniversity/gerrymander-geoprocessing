@@ -390,12 +390,11 @@ def generate_precinct_shp(local, shape_path, out_path, prec_col):
 
 # NEW 
 
-def dissolve(in_path, dissolve_attribute):   
+def dissolve(df, dissolve_attribute):   
     ''' Dissolves boundaries according to the dissolve_attribute (diss_att)
 
     Arguments:
-        in_path: full path to the shapefile that will have its boundaries
-        dissolved
+        in_path: geodataframe of shapefile to dissolve
         dissolve_attribute: attribute to dissolve boundaries according to
 
     Output:
@@ -405,10 +404,6 @@ def dissolve(in_path, dissolve_attribute):
         Main use is to generate a precinct level shapefile from census block
         data
     '''
-    # read the input shapefile (delete cpg because of potential encoding error)
-    delete_cpg(in_path)
-    df = gpd.read_file(in_path)
-    
     # Get unique values of dissolved attribute
     dissolve_names = list(df[dissolve_attribute].unique())
     
