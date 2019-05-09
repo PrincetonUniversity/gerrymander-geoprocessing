@@ -1,2 +1,0 @@
-Directory that contains county folders,(paste path to folder containing locality folders)		
-Locality Name (List every locality to match the folder names),Number of Regions to Reduce to,Census Shape Path (Default: census_block),Out Path (Default: precinct),Image Path (filepath to cropped image of precincts),Colors (number of colors to reduce down to with 0 meaning don't reduce)

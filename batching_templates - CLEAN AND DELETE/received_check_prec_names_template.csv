@@ -1,2 +1,0 @@
-Directory that contains county folders,(paste path to folder with county folders here),,
-Locality Name (match with folder name),Path of Received SHP,Col to Check (name of precinct column in received shapefile),Input to Check (List names of precincts from election results separated by comma no spaces

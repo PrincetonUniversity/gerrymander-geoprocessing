@@ -1,2 +1,0 @@
-Directory that contains county folders,(paste path to folder with county folders here)
-Locality Name,Census Shapefile Path (default: census_block),Out Path (default: precinct),Precinct Column Name
