@@ -1,46 +1,9 @@
-import shutil, os
+import os
+import shutil
 import geopandas as gpd
 import helper_tools.shp_manipulation as sm
 import helper_tools.shp_calculations as sc
 import helper_tools.file_management as fm
-
-def dissolve_by_attribute(in_path, out_path, dissolve_attribute):
-	''' 
-	Dissolve boundaries for shapefile(s) according to a given attribute. we will
-	also check for contiguity after boundaries have been dissolved.
-
-	Arguments:
-		in_path: full path to input shapefile to be dissolved
-		out_path: full path to save created shapefile
-		disolve_attribute: attribute to dissolve boundaries by
-	'''
-	#  Generate dissolved shapefile
-	geo_df = fm.load_shapefile(in_path)
-	geo_df = sm.dissolve(geo_df, dissolve_attribute)
-
-	# Print potential errors
-	sc.check_contiguity_and_contained(geo_df, dissolve_attribute)
-
-	# Save shapefile
-	fm.save_shapefile(geo_df, out_path)
-
-def create_bounding_frame(in_path, out_path):
-	''' 
-	Create a bounding box around the extents of a shapefile. 
-
-	This will be used to overlay on top of a georeferenced image in GIS to allow for
-	automated cropping in the algorithm that converts converting precinct images to 
-	shapefiles. Will usually use a census block shapfile to generate this bounding
-	frame
-
-	Arguments:
-		in_path: full path to input shapefile to create bounding frame for
-		out_path: full path to save bounding frame shapefile
-	'''
-	# Generate bounding frame and save
-	df = fm.load_shapefile(in_path)
-	bounding_frame_df = sm.generate_bounding_frame(df)
-	fm.save_shapefile(bounding_frame_df, out_path)
 
 def disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path, 
 	prefix = '', suffix=''):
@@ -65,7 +28,6 @@ def disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path,
 		prefix: string to put in front name of smaller shapefiles
 		suffix: string to put behind name of smaller shapefiles
 	'''
-
 	# load shapefile
 	df = fm.load_shapefile(shp_path)
 
@@ -89,3 +51,14 @@ def disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path,
 		df_attr = df[df[disaggregate_attr] == attr]
 		df_attr = gpd.GeoDataFrame(df_attr, geometry='geometry')
 		fm.save_shapefile(df_attr, subdirec + '/' + name + '.shp')
+
+# print('start')
+
+# # testing
+# shp_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/testing/test_data/disaggregate_by_attribute/test_disaggregate.shp"
+# disaggregate_attr = 'attribute'
+# direc_path = "C:/Users/conno/Documents/GitHub/Princeton-Gerrymandering/gerrymander-geoprocessing/testing/debug/disagg_test"
+# prefix = 'prefix_'
+# suffix ='_suffix'
+
+# disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path, prefix, suffix)
