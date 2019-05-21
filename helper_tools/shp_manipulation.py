@@ -8,7 +8,7 @@ import shapely as shp
 from shapely.geometry import Polygon
 
 # import helper tools as if running from parent directory
-from helper_tools.file_management import delete_cpg
+from helper_tools.basic import delete_cpg
 
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):

@@ -9,21 +9,8 @@ import datetime
 
 # import helper tools as if running from parent directory
 from helper_tools.shp_manipulation import set_CRS
+from helper_tools.basic import delete_cpg
 
-def delete_cpg(path):
-    '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
-    encodes a shapefile and incorrectly saves the CPG. Before running most
-    of the scripts, it is beneficially to ensure an encoding error does throw
-    an error
-    
-    Argument:
-        path: path to a file that has the same name as the .cpg file. Usually
-        the shapefile
-    '''
-    
-    cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
-    if os.path.exists(cpg_path):
-        os.remove(cpg_path)
 
 def load_shapefile(file_path):
     '''Loads shapefile given a path. Also deletes the CPG file to ensure an
@@ -61,7 +48,7 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
 
     # Add Coordinate Reference System if one does not already exist
     if df.crs == {}:
-        df = sm.set_CRS(df)
+        df = set_CRS(df)
     
     # Attempt to fix object types in dataframe by converting to float if
     # possible
