@@ -38,7 +38,7 @@ def simple_grid_test():
 		return True
 	return False
 
-if simple_grid_test() == True:
+if simple_grid_test():
 	print('Simple dissolve test PASSED')
 else:
 	print('Simple dissolve test FAILED')

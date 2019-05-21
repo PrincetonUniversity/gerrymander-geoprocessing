@@ -7,6 +7,7 @@ import geopandas as gpd
 os.chdir('../..')
 sys.path.append(os.getcwd())
 import helper_tools.shp_calculations as sc
+import helper_tools.file_management as fm
 
 def noncontiguous_test():
 	''' 3 x 3 grid that surrounds a single element. It should return that a 

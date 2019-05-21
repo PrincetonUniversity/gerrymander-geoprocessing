@@ -51,7 +51,7 @@ folder = "/testing/test_data/bounding_frame/"
 input_path = os.getcwd() + folder + "input_bounding_frame_contiguous.shp"
 correct_path = os.getcwd() + folder + "correct_bounding_frame_contiguous.shp"
 
-if frame_test(input_path, correct_path) == True:
+if frame_test(input_path, correct_path):
 	print('Contiguous bounding frame test PASSED')
 else:
 	print('Contiguous bounding frame test FAILED')
@@ -60,8 +60,8 @@ else:
 input_path = os.getcwd() + folder + "input_bounding_frame_noncontiguous.shp"
 correct_path = os.getcwd() + folder + "correct_bounding_frame_noncontiguous.shp"
 
-if frame_test(input_path, correct_path) == True:
-	print('Contiguous bounding frame test PASSED')
+if frame_test(input_path, correct_path):
+	print('Noncontiguous bounding frame test PASSED')
 else:
-	print('Contiguous bounding frame test FAILED')
+	print('Noncontiguous bounding frame test FAILED')
 
