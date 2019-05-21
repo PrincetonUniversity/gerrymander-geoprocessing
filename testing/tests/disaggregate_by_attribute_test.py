@@ -35,8 +35,6 @@ def folder_name_test(direc_path, attr, prefix, suffix):
 def file_name_test(direc_path, attr, prefix, suffix):
 	''' Check that files are named correclty '''
 
-
-
 	# Check if all shapefiles exist
 	for a in attr:
 		correct_folder = direc_path + '/' + prefix + a + suffix
