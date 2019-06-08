@@ -11,9 +11,7 @@ import helper_tools.file_management as fm
 import shapely as shp
 from shapely.geometry import Polygon
 
-import pytest
-
-def frame_check(input_path, correct_path):
+def frame(input_path, correct_path):
 	''' Input is a 3 x 3 grid. The bounding frame should be created around the
 	extents of the input shapefile that is contiguous
 
@@ -42,29 +40,31 @@ def frame_check(input_path, correct_path):
 	created_interior = Polygon(created_frame.interiors[0])
 
 	# Check equality between the two interiors
-	if correct_interior.equals(created_interior):
-		return True
-	return False
+	assert correct_interior.equals(created_interior)
 
-def contiguous_test():
-	''' Bounding frame is correctly created on contiguous geometries'''
-	# Get correct file paths
-	folder = "/testing/test_data/bounding_frame/"
+class TestBoundingFrame:
+	def test_continguous_input(self):
+		'''Bounding frame around contiguous shapefile'''
+		# Get correct file paths
+		folder = "/testing/test_data/bounding_frame/"
+		in_str = "input_bounding_frame_contiguous.shp"
+		correct_str = "correct_bounding_frame_contiguous.shp"
 
-	# Test for contiguous input
-	input_path = os.getcwd() + folder + "input_bounding_frame_contiguous.shp"
-	correct_path = os.getcwd() + folder + "correct_bounding_frame_contiguous.shp"
+		input_path = os.getcwd() + folder + in_str
+		correct_path = os.getcwd() + folder + correct_str
+			
+		frame(input_path, correct_path)
 
-	assert frame_check(input_path, correct_path)
+	def test_noncontiguous_input(self):
+		'''Bounding frame around noncontiguous shapefile'''
 
-def noncontiguous_test():
-	'''Bounding frame is correctly created on noncontiguous geometries'''
+		folder = "/testing/test_data/bounding_frame/"
+		in_str = "input_bounding_frame_noncontiguous.shp"
+		correct_str = "correct_bounding_frame_noncontiguous.shp"
 
-	# Get correct file paths
-	folder = "/testing/test_data/bounding_frame/"
+		input_path = os.getcwd() + folder + in_str
+		correct_path = os.getcwd() + folder + correct_str
 
-	# Test for noncontiguous input
-	input_path = os.getcwd() + folder + "input_bounding_frame_noncontiguous.shp"
-	correct_path = os.getcwd() + folder + "correct_bounding_frame_noncontiguous.shp"
+		frame(input_path, correct_path)
 
-	assert frame_check(input_path, correct_path)
+

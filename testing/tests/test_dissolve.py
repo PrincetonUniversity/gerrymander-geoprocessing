@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 import helper_tools.shp_manipulation as sm
 import helper_tools.file_management as fm
 
-def simple_grid_test():
+def test_simple_grid():
 	''' 3 x 3 grid that should dissolve into three columns. Check if dissolve
 	function is working properly for this small example '''
 
@@ -34,11 +34,4 @@ def simple_grid_test():
 				matches += 1
 
 	# Return true if each geometry matches
-	if matches == 3:
-		return True
-	return False
-
-if simple_grid_test():
-	print('Simple dissolve test PASSED')
-else:
-	print('Simple dissolve test FAILED')
+	assert matches == 3

@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 import helper_tools.shp_calculations as sc
 import helper_tools.file_management as fm
 
-def noncontiguous_test():
+def test_noncontiguous():
 	''' 3 x 3 grid that surrounds a single element. It should return that a 
 	noncontigous element exists'''
 
@@ -18,11 +18,9 @@ def noncontiguous_test():
 	input_path = os.getcwd()  + folder + "test_noncontiguous.shp"
 	df = fm.load_shapefile(input_path)
 
-	if len(sc.check_contiguity_and_contained(df, 'attribute')[0]) == 0:
-		return False
-	return True
+	assert len(sc.check_contiguity_and_contained(df, 'attribute')[0])
 
-def contained_test():
+def test_contained():
 	''' 3 x 3 grid that surrounds a single element. It should return that a 
 	noncontigous element exists'''
 
@@ -31,20 +29,4 @@ def contained_test():
 	input_path = os.getcwd()  + folder + "test_contained.shp"
 	df = fm.load_shapefile(input_path)
 
-	if len(sc.check_contiguity_and_contained(df, 'attribute')[1]) == 0:
-		return False
-	return True
-
-noncontiguous = noncontiguous_test()
-contained = contained_test()
-
-print('\n-------------------------------------\n')
-if noncontiguous == True:
-	print('Noncontiguous test PASSED')
-else:
-	print('Noncontiguous test FAILED')
-
-if contained == True:
-	print('Contained test PASSED')
-else:
-	print('Contained test FAILED')
+	assert len(sc.check_contiguity_and_contained(df, 'attribute')[1])
