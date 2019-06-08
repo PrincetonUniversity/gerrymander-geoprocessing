@@ -43,6 +43,10 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
     for elem in cols_to_exclude:
         if elem in df.columns:
             actual_cols_to_exclude.append(elem)
+
+    # Ensure geometry column is not being dropped
+    if 'geometry' in actual_cols_to_exclude:
+        actual_cols_to_exclude.remove('geometry')
             
     df = df.drop(columns=actual_cols_to_exclude)
 
@@ -129,8 +133,6 @@ def default_path(path, local, direc_path):
         path = direc_path + '/' + local + '/' + filename
 
     return path
-    
-
 
 def read_one_csv_elem(csv_path, row=0, col=1):
     ''' This function will return one element of the csv

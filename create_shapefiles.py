@@ -3,6 +3,7 @@ import geopandas as gpd
 import helper_tools.shp_manipulation as sm
 import helper_tools.shp_calculations as sc
 import helper_tools.file_management as fm
+import pandas as pd
 
 def dissolve_by_attribute(in_path, out_path, dissolve_attribute):
 	''' 
@@ -89,3 +90,50 @@ def disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path,
 		df_attr = df[df[disaggregate_attr] == attr]
 		df_attr = gpd.GeoDataFrame(df_attr, geometry='geometry')
 		fm.save_shapefile(df_attr, subdirec + '/' + name + '.shp')
+
+
+def merge_shapefiles(paths_to_merge, out_path, keep_cols='all'):
+	'''
+	Combine multiple shapefiles into a single shapefile
+
+	Arguments:
+		paths_to_merge: LIST of path strings of shapfiles to merge
+		out_path: path to save new shapefile
+		keep_cols: default -> 'all' meeans to keep all, otherwise this input 
+			takes a LIST of which columns/attributes to keep
+
+	'''
+	# Initalize Output DatFarme
+	df_final = pd.DataFrame()
+
+	# Loop through paths and merge
+	for path in paths_to_merge:
+
+		# Load and append current dataframe
+		df_current = fm.load_shapefile(path)
+		df_final = df_final.append(df_current, ignore_index=True, sort=True)
+
+
+	# reduce to only columns/attributes we are keeping
+	if keep_cols == 'all':
+		exclude_cols = []
+	else:
+		exclude_cols = list(set(df_final.columns) - set(keep_cols))
+
+	# Save final shapefile
+	df_final = gpd.GeoDataFrame(df_final, geometry='geometry')
+	fm.save_shapefile(df_final, out_path, exclude_cols)
+
+
+
+'''
+testing notes
+	check that the correct columns are there
+	check that the correct shapes are there
+
+	What shapefiles do I need to create
+
+	Correct shapefile
+	Three individual shapefiles
+	3 columns named ['col1', 'col2', 'col3']
+'''
