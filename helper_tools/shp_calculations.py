@@ -4,6 +4,7 @@ Helper methods to calculate properties within shapefiles
 
 from shapely.geometry import Polygon
 from shapely.geometry import Point
+import numpy as np
 
 def real_rook_contiguity(df, geo_id = 'geometry',
                          nbr_id='neighbors',struct_type='list'):

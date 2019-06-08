@@ -10,6 +10,10 @@ Helper methods to execute main algorithms.
         aggregate values of smaller geometries into larger geometries
 """
 
+import pandas as pd
+import operator
+from titlecase import titlecase
+
 def shp_from_sampling(local, num_regions, shape_path, out_path, img_path, \
                       colors=0, sample_limit=500):
     ''' Generates a precinct level shapefile from census block data and an 
