@@ -2,7 +2,10 @@
 *.txt
 .ipynb_checkpoints
 .DS_Store
-__pycache__
+__pycache__/
 VA_load_census
 VA_load_shapes.pkl
 *.pyc
+testing/tests/__pycache__/
+testing/tests/.pytest_cache/
+helper_tools/__pycache__/
