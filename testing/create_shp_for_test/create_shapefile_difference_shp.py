@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Create shapefile to test the dissolve function
+Create shapefile to test the shapefile difference function
 """
 import os
 os.chdir('..')
