@@ -6,10 +6,20 @@
 Welcome to gerrymander-geoprocessing's documentation!
 =====================================================
 
+This is the Princeton Gerrymandering Project's library for the processing
+of geographic data, usually precinct level maps.
+
+The code was originally developed by Connor Moffatt and Jacob Wachspress and
+has been used and improved by other members of the Princeton Gerrymandering Project.
+It is still a work and progress.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   user/create
+   user/edit
+   user/other
 
 
 Indices and tables
