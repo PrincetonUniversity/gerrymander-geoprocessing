@@ -8,8 +8,6 @@ import shapely as shp
 from shapely.geometry import Polygon
 
 # import helper tools as if running from parent directory
-from helper_tools.basic import delete_cpg
-
 import helper_tools.file_management as fm
 
 def merge_fully_contained(df, geo_id = 'geometry',
@@ -255,28 +253,6 @@ def merge_to_right_number(df, num_regions):
         df.at[i, 'region'] = i
         
     return df
-
-def set_CRS(gdf, new_crs='epsg:4269'):
-    ''' This function will set a coordinate reference system (CRS) for a a 
-    geodataframe
-    
-    Arguments:
-        gdf: This is the geodataframe that we are converting to a different
-                coordinate reference systems
-        new_crs: This is the CRS we are converting to. This is usually in the
-        form epsg:####
-        
-    Output:
-        geodataframe with a converted CRS
-    '''
-    
-    # If no CRS set, set it with .crs
-    if gdf.crs == {}:
-        gdf.crs = {'init': new_crs}
-    # Transform CRS
-    else:
-        gdf = gdf.to_crs({'init': new_crs})
-    return gdf
 
 def dissolve(df, dissolve_attribute):   
     ''' Dissolves boundaries according to the dissolve_attribute (diss_att)

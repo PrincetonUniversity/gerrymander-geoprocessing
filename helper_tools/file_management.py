@@ -7,8 +7,27 @@ import geopandas as gpd
 import pandas as pd
 import datetime
 
-# import helper tools as if running from parent directory
-from helper_tools.shp_manipulation import set_CRS
+def set_CRS(gdf, new_crs='epsg:4269'):
+    ''' This function will set a coordinate reference system (CRS) for a a 
+    geodataframe
+    
+    Arguments:
+        gdf: This is the geodataframe that we are converting to a different
+                coordinate reference systems
+        new_crs: This is the CRS we are converting to. This is usually in the
+        form epsg:####
+        
+    Output:
+        geodataframe with a converted CRS
+    '''
+    
+    # If no CRS set, set it with .crs
+    if gdf.crs == {}:
+        gdf.crs = {'init': new_crs}
+    # Transform CRS
+    else:
+        gdf = gdf.to_crs({'init': new_crs})
+    return gdf
 
 
 def delete_cpg(path):

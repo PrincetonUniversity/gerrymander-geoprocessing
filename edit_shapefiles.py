@@ -1,4 +1,3 @@
-from helper_tools.shp_manipulation import set_CRS
 import helper_tools.file_management as fm
 import shapely as shp
 import pandas as pd
@@ -19,7 +18,7 @@ def transform_crs(shp_paths, crs='epsg:4269'):
 	for path in shp_paths:
 		# load, add crs, and save
 		shp = fm.load_shapefile(path)
-		shp = set_CRS(shp, crs)
+		shp = fm.set_CRS(shp, crs)
 		fm.save_shapefile(shp, path)
 
 def remove_geometries(path_delete, save_path, path_reference, thresh):

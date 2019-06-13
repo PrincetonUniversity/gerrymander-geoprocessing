@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 
 import helper_tools.file_management as fm
 import helper_tools.shp_manipulation as sm
-from create_shapefiles import disaggregate_by_attribute
+from create_shapefiles import disaggregate_file
 import shapely as shp
 from shapely.geometry import Polygon
 
@@ -65,20 +65,21 @@ def shapes(df_test, disaggregate_attr, direc_path, attr, prefix, suffix):
 def test_disaggregate_by_attribute():
 
 	# Define Inputs
-	test_data = "/testing/test_data/disaggregate_by_attribute/test_disaggregate.shp"
+	test_data = "/testing/test_data/disaggregate_file/"
+	test_data += "test_disaggregate_file.shp"
 	shp_path = os.getcwd() +  test_data
 	disaggregate_attr = 'attribute'
 	prefix = 'prefix_'
 	suffix ='_suffix'
 
 	# Create directory to dump data into
-	direc_path = os.getcwd() + "/testing/debug/disaggregate_by_attribute_test"
+	direc_path = os.getcwd() + "/testing/debug/disaggregate_file"
 	if os.path.exists(direc_path):
 		shutil.rmtree(direc_path)
 	os.mkdir(direc_path)
 
 	# Perform function
-	disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path, prefix, 
+	disaggregate_file(shp_path, disaggregate_attr, direc_path, prefix, 
 		suffix)
 
 	# obtain test file and attributes

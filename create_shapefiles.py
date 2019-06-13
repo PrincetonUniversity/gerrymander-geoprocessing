@@ -43,7 +43,7 @@ def create_bounding_frame(in_path, out_path):
 	bounding_frame_df = sm.generate_bounding_frame(df)
 	fm.save_shapefile(bounding_frame_df, out_path)
 
-def disaggregate_by_attribute(shp_path, disaggregate_attr, direc_path, 
+def disaggregate_file(shp_path, disaggregate_attr, direc_path, 
 	prefix = '', suffix=''):
 	'''
 	Take a larger shapefile and disaggreagate it into smaller shapefiles 
