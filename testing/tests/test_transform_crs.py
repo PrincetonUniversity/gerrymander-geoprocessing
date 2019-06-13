@@ -33,7 +33,7 @@ def intitialize_test_files(filename):
 
 	# copy file to our debugging directory
 	shp = fm.load_shapefile(data_path)
-	fm.save_shapefile(shp, test_path)
+	shp.to_file(test_path)
 
 	# return testing path
 	return test_path
