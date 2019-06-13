@@ -1,5 +1,5 @@
 '''
-Tests for remove function
+Tests for remove geometries function
 '''
 
 import os, sys
