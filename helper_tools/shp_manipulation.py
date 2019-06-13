@@ -10,6 +10,8 @@ from shapely.geometry import Polygon
 # import helper tools as if running from parent directory
 from helper_tools.basic import delete_cpg
 
+import helper_tools.file_management as fm
+
 def merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
     '''If any geometry is contained entirely within another geometry, this
@@ -275,85 +277,6 @@ def set_CRS(gdf, new_crs='epsg:4269'):
     else:
         gdf = gdf.to_crs({'init': new_crs})
     return gdf
-
-def generate_precinct_shp(local, shape_path, out_path, prec_col):    
-    ''' Generates the final precinct level shapefile from census block data
-    and an update "precinct" region attribute column. Also gives the locality
-    as an attribute column for each precincst
-    
-    Arguments:
-        local: name of the locality
-        shape_path: full path to the census block shapefile
-        out_folder: directory that precinct level shapefile will be saved in
-        prec_col: Column denoting the precinct id in the census block file
-        
-    Output:
-        Number of census blocks in the county
-    '''        
-    # read in census block shapefile
-    delete_cpg(shape_path)
-    df = gpd.read_file(shape_path)
-    
-    # Get unique values in the df ID column
-    prec_names = list(df[prec_col].unique())
-    
-    # Create dataframe for precinct shapefile
-    df_prec = pd.DataFrame(columns=['precinct', 'geometry', 'locality'])
-
-
-    # Iterate through all of the prec_col and set geometry of df_prec with
-    # cascaded union
-    for i, elem in enumerate(prec_names):
-        df_poly = df[df[prec_col] == elem]
-        polys = list(df_poly['geometry'])
-
-        geometry = shp.ops.cascaded_union(polys)
-        df_prec.at[i, 'geometry'] = geometry
-        df_prec.at[i, prec_col] = elem
-        #print(geometry.type)
-        
-        # check if precinct is noncontiguous
-        if geometry.type == 'Polygon':
-            # check if precinct contains another precinct. Only make this
-            # check if the geometry type is a polygon
-            poly_coords = list(geometry.exterior.coords)
-
-            poly = Polygon(poly_coords)
-            # If poly is within the geometry then no neighbors are contained
-            if not geometry.contains(poly):
-                print('Contains Another : ' + str(elem))
-        
-        # Precinct is noncontiguous
-        else:
-            print('\nNoncontiguous: ' + str(elem))
-            print('Num Non-Contiguous Pieces to Fix: ' + \
-                  str(len(geometry.geoms) - 1))
-            
-            # Check if any of the polygons in the MultiPolygon are donuts
-            for sub_polygon in geometry.geoms:
-                if sub_polygon.type == 'Polygon':
-                    
-                    # check if precinct contains another precinct.
-                    poly_coords = list(sub_polygon.exterior.coords)
-                    poly = Polygon(poly_coords)
-                    
-                    # If poly is within the geometry then no neighbors are 
-                    # contained
-                    if not geometry.contains(poly):
-                        print('\nContains Another : ' + str(elem))
-                        
-    # Set locality name for each precinct
-    df_prec['locality'] = local
-
-     # Save Precinct Shapefile    
-    df_prec = gpd.GeoDataFrame(df_prec, geometry='geometry')
-    save_shapefile(df_prec, out_path)
-        
-    return len(df)
-
-################################################################################
-
-# NEW 
 
 def dissolve(df, dissolve_attribute):   
     ''' Dissolves boundaries according to the dissolve_attribute (diss_att)

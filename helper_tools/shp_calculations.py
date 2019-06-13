@@ -187,9 +187,6 @@ def fraction_shared_perim(nbrs, indices, perim):
     
     return shared_perim/perim
 
-################################################################################
-
-# NEW 
 
 def check_contiguity_and_contained(df, id_attribute):
     ''' Identify which geometries in a shapefile are noncontiguous and which

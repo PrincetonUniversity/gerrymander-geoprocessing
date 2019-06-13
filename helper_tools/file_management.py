@@ -9,8 +9,22 @@ import datetime
 
 # import helper tools as if running from parent directory
 from helper_tools.shp_manipulation import set_CRS
-from helper_tools.basic import delete_cpg
 
+
+def delete_cpg(path):
+    '''Deletes the CPG with a corresponding SHP. ArcGIS sometimes incorrectly
+    encodes a shapefile and incorrectly saves the CPG. Before running most
+    of the scripts, it is beneficially to ensure an encoding error does throw
+    an error
+    
+    Argument:
+        path: path to a file that has the same name as the .cpg file. Usually
+        the shapefile
+    '''
+    
+    cpg_path = '.'.join(path.split('.')[:-1]) + '.cpg'
+    if os.path.exists(cpg_path):
+        os.remove(cpg_path)
 
 def load_shapefile(file_path):
     '''Loads shapefile given a path. Also deletes the CPG file to ensure an
@@ -92,82 +106,3 @@ def save_shapefile(df, file_path, cols_to_exclude=[]):
     # Save file if the file does not already exist
     else:
         df.to_file(file_path)
-    
-def default_path(path, local, direc_path):
-    '''If the path is a keyword, the path to a designated shapefile will be
-    returned. The possible default keywords are census_block, precinct,
-    precinct_final
-    
-    Arguments:
-        path: current path to the shapefile. Might be a default keyword
-        local: name of the locality, which will be the parent directory
-        direc_path: directory path to all of the locality folders
-        
-    Output:
-        Path to a default file or the original file path
-    '''
-    
-    if path == 'census_block':
-        filename = local + '_census_block.shp'
-        filename = filename.replace(' ', '_')
-        path = direc_path + '/' + local + '/' + filename
-                        
-    if path == 'precinct':
-        filename = local + '_precincts.shp'
-        filename = filename.replace(' ', '_')
-        path = direc_path + '/' + local + '/' + filename
-        
-    if path == 'precinct_final':
-        filename = local + '_precincts_final.shp'
-        filename = filename.replace(' ', '_')
-        path = direc_path + '/' + local + '/' + filename
-        
-    if path == 'bounding_frame':
-        filename = local + '_bounding_frame.shp'
-        filename = filename.replace(' ', '_')
-        path = direc_path + '/' + local + '/' + filename
-        
-    if path == 'census_block_removed':
-        filename = local + '_census_block_removed.shp'
-        filename = filename.replace(' ', '_')
-        path = direc_path + '/' + local + '/' + filename
-
-    return path
-
-def read_one_csv_elem(csv_path, row=0, col=1):
-    ''' This function will return one element of the csv
-    
-    Arguments:
-        csv_path: path to read in the csv_file
-        row: row of the text to read in
-        col: col of the text to read in
-    
-    Output:
-        Desired element in the csv
-    '''
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        data = [r for r in reader]
-    return data[row][col]
-
-def read_csv_to_df(csv_path, head, col_names, list_cols):
-    ''' Read in a csv for batching for other processes
-    
-    Arguments:
-        csv_path: path to read in the csv file
-        head: the header row to read in the csv as a pandas df
-        col_names: list column names in order as headers for the pandas df
-        list_cols: columns to convert to lists from comma delimited strings
-    
-    Output:
-        The csv dataframe to run batching process through
-    '''
-    # Read in csv as df
-    csv_df = pd.read_csv(csv_path, header=head, names=col_names)
-    
-    # Convert comma delimited string columns to lists
-    for col in list_cols:
-        if col in col_names:
-            csv_df[col] = csv_df[col].str.split(',')
-            
-    return csv_df

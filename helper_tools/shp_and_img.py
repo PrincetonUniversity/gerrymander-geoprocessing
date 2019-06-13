@@ -43,8 +43,6 @@ def cropped_bordered_image(img_path):
     while (img_arr[:,right] == color).all():
         right -= 1
 
-    
-
     # Save new image as 'oldname cropped'
     ext = img_path.split('.')[-1]
     filename=  '.'.join(img_path.split('.')[:-1]) + ' cropped'
