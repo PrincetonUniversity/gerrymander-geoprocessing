@@ -108,13 +108,7 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
 
     # Initialize new series in small shp
     for col in large_cols:
-    	print(col)
-    	print(df_large[col].dtype)
-        #df_small[col] = pd.Series(dtype=df_large[col].dtype)
         df_small[col] = pd.Series(dtype=object)
-        print(df_small[col].dtype)
-        print('------------------')
-
 
     # construct r-tree spatial index. Creates minimum bounding rectangle about
     # each geometry in df_from
