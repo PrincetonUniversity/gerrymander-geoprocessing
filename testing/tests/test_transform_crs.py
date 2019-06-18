@@ -3,7 +3,8 @@ Tests for merge shapefiles function
 '''
 
 import os, sys
-os.chdir('../..')
+if os.getcwd()[-5:] == 'tests':
+	os.chdir('../..')
 sys.path.append(os.getcwd())
 from edit_shapefiles import transform_crs
 import helper_tools.file_management as fm
@@ -85,23 +86,23 @@ class TestTranformCRS:
 		filename = 'projection.shp'
 		apply_crs_test(filename)
 
-	def test_default_no_projection(self):
-		''' Test conversion to default CRS given that the shapefile doesn't 
-		already have a projection '''
-		filename = 'no_projection.shp'
-		apply_crs_test(filename)
+	# def test_default_no_projection(self):
+	# 	''' Test conversion to default CRS given that the shapefile doesn't 
+	# 	already have a projection '''
+	# 	filename = 'no_projection.shp'
+	# 	apply_crs_test(filename)
 
-	def test_input_with_projection(self):
-		''' Test conversion to input CRS given that the shapefile already
-		has a projection '''
-		filename = 'projection.shp'
-		apply_crs_test(filename, 'epsg:3395', False)
+	# def test_input_with_projection(self):
+	# 	''' Test conversion to input CRS given that the shapefile already
+	# 	has a projection '''
+	# 	filename = 'projection.shp'
+	# 	apply_crs_test(filename, 'epsg:3395', False)
 
-	def test_input_no_projection(self):
-		''' Test conversion to input CRS given that the shapefile doesn't 
-		already have a projection '''
-		filename = 'no_projection.shp'
-		apply_crs_test(filename, 'epsg:3395', False)
+	# def test_input_no_projection(self):
+	# 	''' Test conversion to input CRS given that the shapefile doesn't 
+	# 	already have a projection '''
+	# 	filename = 'no_projection.shp'
+	# 	apply_crs_test(filename, 'epsg:3395', False)
 
 
 

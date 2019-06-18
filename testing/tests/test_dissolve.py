@@ -4,7 +4,8 @@ Tests for dissolve function
 # need to change path to import helper tools in the path
 import os, sys
 import geopandas as gpd
-os.chdir('../..')
+if os.getcwd()[-5:] == 'tests':
+	os.chdir('../..')
 sys.path.append(os.getcwd())
 import helper_tools.shp_manipulation as sm
 import helper_tools.file_management as fm

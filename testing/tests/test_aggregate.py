@@ -3,7 +3,8 @@ Tests for aggregate function
 '''
 
 import os, sys
-os.chdir('../..')
+if os.getcwd()[-5:] == 'tests':
+	os.chdir('../..')
 sys.path.append(os.getcwd())
 from edit_shapefiles import aggregate
 import helper_tools.file_management as fm

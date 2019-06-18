@@ -1,11 +1,11 @@
 '''
-Tests for disaagregate_by_attribute script
+Tests for disaggregate file function
 '''
 # need to change path to import helper tools in the path
 import os, sys, shutil
-os.chdir('../..')
+if os.getcwd()[-5:] == 'tests':
+	os.chdir('../..')
 sys.path.append(os.getcwd())
-
 import helper_tools.file_management as fm
 import helper_tools.shp_manipulation as sm
 from create_shapefiles import disaggregate_file

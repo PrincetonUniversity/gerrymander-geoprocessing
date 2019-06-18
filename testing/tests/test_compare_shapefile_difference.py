@@ -1,9 +1,10 @@
 '''
-Tests for merge shapefiles function
+Tests for compare shapefile diffrence function
 '''
 
 import os, sys
-os.chdir('../..')
+if os.getcwd()[-5:] == 'tests':
+	os.chdir('../..')
 sys.path.append(os.getcwd())
 from other_actions import compare_shapefile_difference
 

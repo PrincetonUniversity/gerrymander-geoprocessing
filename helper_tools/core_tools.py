@@ -328,192 +328,192 @@ def shp_from_manual_GIS(local, shape_path, out_path, prec_col):
 #     # Return output dataframe
 #     return df_to
     
-def interpolate_aggregate(df_to, df_from, adjust_cols, inter_type='fractional', 
-                          aggregate_on='area'):    
-    '''
-    Aggregate column values based on geometries in df_to from df_from based
-    on the interpolation type (inter_type) and what is decided to aggregate on
-    For from geometries that do not have any intersection with to geometries,
-    minimum centroid distance is used. For from geometries that are not
-    entirely contained within the to geometries, the leftover area is allocated
-    to the intersection with the largest area.
+# def interpolate_aggregate(df_to, df_from, adjust_cols, inter_type='fractional', 
+#                           aggregate_on='area'):    
+#     '''
+#     Aggregate column values based on geometries in df_to from df_from based
+#     on the interpolation type (inter_type) and what is decided to aggregate on
+#     For from geometries that do not have any intersection with to geometries,
+#     minimum centroid distance is used. For from geometries that are not
+#     entirely contained within the to geometries, the leftover area is allocated
+#     to the intersection with the largest area.
     
-    Arguments:
-        to_df_path: path to the shapefile containing the dataframe to be 
-        modified
-        from_df_path: path to the shapefile used to modify to_df
-        adjust_cols: list of tuples that determine which df_to columns are
-        set equal to which df_from cols. Round column is whether to round the
-        aggregated data. Preserve column is whether to preserve sums
-        [(df_to_col1, df_from_col1, round_col1, preserve_col1), 
-        (df_to_col2, df_from_col2, round_col2, preserve_col2),...]
-        inter_type: How to perform the labeling. Two valid inputs 
-        are 'winner take all' and 'fractional'
-        aggregate_on: Based on what value to perform the aggregation. For area
-        a new series is added
+#     Arguments:
+#         to_df_path: path to the shapefile containing the dataframe to be 
+#         modified
+#         from_df_path: path to the shapefile used to modify to_df
+#         adjust_cols: list of tuples that determine which df_to columns are
+#         set equal to which df_from cols. Round column is whether to round the
+#         aggregated data. Preserve column is whether to preserve sums
+#         [(df_to_col1, df_from_col1, round_col1, preserve_col1), 
+#         (df_to_col2, df_from_col2, round_col2, preserve_col2),...]
+#         inter_type: How to perform the labeling. Two valid inputs 
+#         are 'winner take all' and 'fractional'
+#         aggregate_on: Based on what value to perform the aggregation. For area
+#         a new series is added
             
-    Output: To dataframe with the new series containing the labels
-    '''
-     # lowercase to help string matching
-    inter_type = inter_type.lower()
-    if aggregate_on.lower() == 'area':
-        aggregate_on = 'area'
+#     Output: To dataframe with the new series containing the labels
+#     '''
+#      # lowercase to help string matching
+#     inter_type = inter_type.lower()
+#     if aggregate_on.lower() == 'area':
+#         aggregate_on = 'area'
     
-    # Default set to fractional        
-    if inter_type != 'fractional' and inter_type != 'winner take all':
-        inter_type = 'fractional'
+#     # Default set to fractional        
+#     if inter_type != 'fractional' and inter_type != 'winner take all':
+#         inter_type = 'fractional'
         
-    if aggregate_on not in df_to.columns and aggregate_on != 'area':
-        print('aggregate_on value not in df_to columns')
-        print('interpolation cancelled for this dataframe')
-        return 0
+#     if aggregate_on not in df_to.columns and aggregate_on != 'area':
+#         print('aggregate_on value not in df_to columns')
+#         print('interpolation cancelled for this dataframe')
+#         return 0
     
-    # Get index for df_from
-    df_to.index = df_to.index.astype(int)
+#     # Get index for df_from
+#     df_to.index = df_to.index.astype(int)
     
-    # Need to define which columns in the to dataframe to drop. We will drop
-    # all columns from the csv that actuaslly exist in the to dataframe. We
-    # will also drop columns in the to_
-    drop_cols_before = []
-    drop_cols_after = []
+#     # Need to define which columns in the to dataframe to drop. We will drop
+#     # all columns from the csv that actuaslly exist in the to dataframe. We
+#     # will also drop columns in the to_
+#     drop_cols_before = []
+#     drop_cols_after = []
 
-    for tup in adjust_cols:
-        # add to before drop
-        if tup[0] in df_to.columns:
-            drop_cols_before.append(tup[0])
+#     for tup in adjust_cols:
+#         # add to before drop
+#         if tup[0] in df_to.columns:
+#             drop_cols_before.append(tup[0])
             
-        # add to after drop. This list will later be used to delete columns
-        # that will only contain null values
-        if tup[1] not in df_from.columns:
-            print('Column not in from df: ' + tup[1])
-            drop_cols_after.append(tup[0])
+#         # add to after drop. This list will later be used to delete columns
+#         # that will only contain null values
+#         if tup[1] not in df_from.columns:
+#             print('Column not in from df: ' + tup[1])
+#             drop_cols_after.append(tup[0])
 
-    # Drop columns that are already in df_to
-    df_to = df_to.drop(columns=drop_cols_before)
+#     # Drop columns that are already in df_to
+#     df_to = df_to.drop(columns=drop_cols_before)
 
-    # Create all output columns in the to_df
-    for tup in adjust_cols:
-        df_to[tup[0]] = pd.Series(0, dtype=float)
+#     # Create all output columns in the to_df
+#     for tup in adjust_cols:
+#         df_to[tup[0]] = pd.Series(0, dtype=float)
 
-    # construct r-tree spatial index. Creates minimum bounding rectangle about
-    # each geometry in df_from
-    si = df_to.sindex
+#     # construct r-tree spatial index. Creates minimum bounding rectangle about
+#     # each geometry in df_from
+#     si = df_to.sindex
 
-    # get centroid for al elements in df_from to take care of no intersection
-    # cases
-    df_to.loc[:, 'centroid'] = df_to.loc[:, 'geometry'].centroid
+#     # get centroid for al elements in df_from to take care of no intersection
+#     # cases
+#     df_to.loc[:, 'centroid'] = df_to.loc[:, 'geometry'].centroid
 
-    # iterate through every geometry in the to_df to match with from_df and set
-    # target values
-    for i, _ in df_from.iterrows():
+#     # iterate through every geometry in the to_df to match with from_df and set
+#     # target values
+#     for i, _ in df_from.iterrows():
     
-        # initialize current element's geometry and check which for minimum
-        # bounding rectangle intersections
-        i_geom = df_from.at[i, 'geometry']
-        poss_df_to_elem = [df_to.index[m] for m in 
-                      list(si.intersection(i_geom.bounds))]
+#         # initialize current element's geometry and check which for minimum
+#         # bounding rectangle intersections
+#         i_geom = df_from.at[i, 'geometry']
+#         poss_df_to_elem = [df_to.index[m] for m in 
+#                       list(si.intersection(i_geom.bounds))]
 
-        # Get the fractional area for each intersecting geometry
-        frac_area = {}
-        for j in poss_df_to_elem:
-            # Get intersection of the two areas
-            j_geom = df_to.at[j, 'geometry']
-            area_intersection = i_geom.intersection(j_geom)
+#         # Get the fractional area for each intersecting geometry
+#         frac_area = {}
+#         for j in poss_df_to_elem:
+#             # Get intersection of the two areas
+#             j_geom = df_to.at[j, 'geometry']
+#             area_intersection = i_geom.intersection(j_geom)
             
-            # Only add to the dictionary during if intersection is nonzero
-            if area_intersection > 0:
-                frac_area[j] = area_intersection / i_geom.area
+#             # Only add to the dictionary during if intersection is nonzero
+#             if area_intersection > 0:
+#                 frac_area[j] = area_intersection / i_geom.area
                 
-        # Get nearest centroid if df_from element does not intersect with any
-        # df_to elements
-        if frac_area == {}:
-            # get centroid for the current geometry
-            c = i_geom.centroid
-            min_dist = -1
+#         # Get nearest centroid if df_from element does not intersect with any
+#         # df_to elements
+#         if frac_area == {}:
+#             # get centroid for the current geometry
+#             c = i_geom.centroid
+#             min_dist = -1
             
-            # find the minimum distance index
-            for j, _ in df_to.iterrows():
-                cur_dist = c.distance(df_to.at[j, 'centroid'])
-                if min_dist == -1 or cur_dist < min_dist:
-                    # Reset frac area and make area value equal to 1
-                    frac_area = {}
-                    frac_area[j] = 1
+#             # find the minimum distance index
+#             for j, _ in df_to.iterrows():
+#                 cur_dist = c.distance(df_to.at[j, 'centroid'])
+#                 if min_dist == -1 or cur_dist < min_dist:
+#                     # Reset frac area and make area value equal to 1
+#                     frac_area = {}
+#                     frac_area[j] = 1
                     
-        # Add any remaining (non-intersected) area to the to geometry with
-        # the maximum overlapping area
-        unused_area = 1 - sum(frac_area.values())
-        if unused_area > 0:
-            max_elem = max(frac_area.items(), key=operator.itemgetter(1))[0]
-            frac_area[max_elem] += unused_area
+#         # Add any remaining (non-intersected) area to the to geometry with
+#         # the maximum overlapping area
+#         unused_area = 1 - sum(frac_area.values())
+#         if unused_area > 0:
+#             max_elem = max(frac_area.items(), key=operator.itemgetter(1))[0]
+#             frac_area[max_elem] += unused_area
                                
-        # Create frac_col out of frac area. This will contain the index
-        # in the to dataframe and the series value
-        if aggregate_on != 'area':
-            frac_col = {}
-            for key in frac_area.keys():
-                frac_col[key] = df_to.at[key, aggregate_on]
-        # Use area to aggregate_on
-        else:
-            frac_col = frac_area
+#         # Create frac_col out of frac area. This will contain the index
+#         # in the to dataframe and the series value
+#         if aggregate_on != 'area':
+#             frac_col = {}
+#             for key in frac_area.keys():
+#                 frac_col[key] = df_to.at[key, aggregate_on]
+#         # Use area to aggregate_on
+#         else:
+#             frac_col = frac_area
                     
-        # Iterate through the tupless containing data on columns as well as
-        # round/preserve
-        for tup in adjust_cols:
-            if tup[1] in df_from.columns:
-                # Case for winner take all
-                if inter_type == 'winner take all':
-                    # Get the maximum element
-                    df_to_elem = max(frac_col.items(), \
-                                     key=operator.itemgetter(1))[0]
-                    df_to.at[df_to_elem, tup[0]] += df_from.at[i, tup[1]]
+#         # Iterate through the tupless containing data on columns as well as
+#         # round/preserve
+#         for tup in adjust_cols:
+#             if tup[1] in df_from.columns:
+#                 # Case for winner take all
+#                 if inter_type == 'winner take all':
+#                     # Get the maximum element
+#                     df_to_elem = max(frac_col.items(), \
+#                                      key=operator.itemgetter(1))[0]
+#                     df_to.at[df_to_elem, tup[0]] += df_from.at[i, tup[1]]
                     
-                elif inter_type == 'fractional':
-                    for to_ix, perc_col in frac_col.items():
-                        df_to.at[to_ix, tup[0]] += df_from.at[i, tup[1]] \
-                                                    * perc_col
+#                 elif inter_type == 'fractional':
+#                     for to_ix, perc_col in frac_col.items():
+#                         df_to.at[to_ix, tup[0]] += df_from.at[i, tup[1]] \
+#                                                     * perc_col
                         
-                # Round values based on value in tup
-                if tup[2] == '1':
-                    # Save old values for preserve
-                    old_col = tup[0] + '_OLD'
-                    old_sum = df_to[old_col].sum()
-                    df_to[old_col] = df_to[tup[0]]
+#                 # Round values based on value in tup
+#                 if tup[2] == '1':
+#                     # Save old values for preserve
+#                     old_col = tup[0] + '_OLD'
+#                     old_sum = df_to[old_col].sum()
+#                     df_to[old_col] = df_to[tup[0]]
                     
-                    # Perform the round
-                    df_to[tup[0]] = df_to[tup[0]].round().astype(int)
+#                     # Perform the round
+#                     df_to[tup[0]] = df_to[tup[0]].round().astype(int)
                     
-                    # Preserve totals based on value in tup
-                    if tup[3] == '1':
-                        # Decrement randomly if rounding caused overestimate
-                        if df_to[tup[0]].sum() > old_sum:
-                            # Get indexes of geometries that were rounded up
-                            rnd_up = list(df_to[df_to[tup[0]] > \
-                                            df_to[old_col]].index)
+#                     # Preserve totals based on value in tup
+#                     if tup[3] == '1':
+#                         # Decrement randomly if rounding caused overestimate
+#                         if df_to[tup[0]].sum() > old_sum:
+#                             # Get indexes of geometries that were rounded up
+#                             rnd_up = list(df_to[df_to[tup[0]] > \
+#                                             df_to[old_col]].index)
             
-                            # Iterate until we have preserved total within 1
-                            while abs(old_sum - df_to[tup[0]].sum()) < 1:
-                                # Apply decrement
-                                ix = random.choice(rnd_up)
-                                df_to.at[ix, tup[0]] = df_to.at[ix, tup[0]] - 1
+#                             # Iterate until we have preserved total within 1
+#                             while abs(old_sum - df_to[tup[0]].sum()) < 1:
+#                                 # Apply decrement
+#                                 ix = random.choice(rnd_up)
+#                                 df_to.at[ix, tup[0]] = df_to.at[ix, tup[0]] - 1
                                 
-                        # Increment randomly if rounding caused underestimate
-                        if df_to[tup[0]].sum() < old_sum:
-                             # Get indexes of geometries that were rounded down                      
-                            rnd_down = list(df_to[df_to[tup[0]] > \
-                                            df_to[old_col]].index)
+#                         # Increment randomly if rounding caused underestimate
+#                         if df_to[tup[0]].sum() < old_sum:
+#                              # Get indexes of geometries that were rounded down                      
+#                             rnd_down = list(df_to[df_to[tup[0]] > \
+#                                             df_to[old_col]].index)
                         
-                            # Iterate until we have preserved total within 1
-                            while abs(old_sum - df_to[tup[0]].sum()) < 1:
-                                # Apply increment
-                                ix = random.choice(rnd_down)
-                                df_to.at[ix, tup[0]] = df_to.at[ix, tup[0]] + 1
+#                             # Iterate until we have preserved total within 1
+#                             while abs(old_sum - df_to[tup[0]].sum()) < 1:
+#                                 # Apply increment
+#                                 ix = random.choice(rnd_down)
+#                                 df_to.at[ix, tup[0]] = df_to.at[ix, tup[0]] + 1
                                 
-                    # Drop old column
-                    df_to = df_to.drop(columns=[old_col])
+#                     # Drop old column
+#                     df_to = df_to.drop(columns=[old_col])
                         
-    # Delete and print columns that are missing in from dataframe
-    df_to = df_to.drop(columns=drop_cols_after)
+#     # Delete and print columns that are missing in from dataframe
+#     df_to = df_to.drop(columns=drop_cols_after)
 
-    # Return output dataframe
-    return df_to
-    
+#     # Return output dataframe
+#     return df_to
+#     
