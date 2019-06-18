@@ -1,6 +1,7 @@
 import helper_tools.file_management as fm
 import shapely as shp
 import pandas as pd
+import numpy as np
 
 def transform_crs(shp_paths, crs='epsg:4269'):
 	'''
@@ -85,6 +86,9 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
         small_cols: LIST of names for attributes given by larger columns.
             Default will be False, which means to use the same attribute names
         small_path: path to save the new dataframe to
+
+    Output:
+    	edited df_small dataframe
     '''
 
     # handle default for small_cols
@@ -106,11 +110,10 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
     df_small = df_small.drop(columns=drop_cols)
 
     # Initialize new series in small shp
-    for col in large_cols:
+    for col in small_cols:
         df_small[col] = pd.Series(dtype=object)
 
-    # construct r-tree spatial index. Creates minimum bounding rectangle about
-    # each geometry in df_from
+    # construct r-tree spatial index
     si = df_large.sindex
 
     # Get centroid for each geometry in the large shapefile
@@ -150,3 +153,168 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
     if small_path:
         fm.save_shapefile(df_small, small_path)
     return df_small
+
+def aggregate(df_small, small_cols, df_large, large_cols=False, 
+    agg_type='fractional', agg_on='area', agg_round=False, large_path=False):
+    '''
+    Aggregate attribute values of small geometries into the larger geometry.
+
+    An example of this would be calculating population in generated precincts.
+    We would take census blocks (the small geometries) and sum up their 
+    values into the precincts (larger geometries)
+
+    There are two types of aggregation. fractional or winner take all. 
+
+    We also can aggregate on area or on another attribute
+
+    For small geometries that do not have any intersection with large
+    
+    Arguments:
+        df_small: smaller shapefile providing the aggregation values
+        small_cols: LIST of columns/attributes to aggregate on
+        df_large: larger shapefile receiving aggregated values
+        large_cols: LIST of names of attributes for values being aggregated.
+            elements in this list correspond to elements in small_cols with
+            the same index. Default is just the names of the columns in
+            small_cols
+        agg_type: 'fractional' or 'winner take all'. form of aggregation. If 
+            a small geometry intersects two larger geometries, then its 
+            values will be either fractionally distributed if 'fractional'
+            or given to the large geometry with the most intersection if
+            'winner take all'. Default is fractional, which is most common
+        agg_on: attribute to aggregate on. Default will be area
+        agg_round: whether to round values. If it is True, then keep fractional
+            sums rather than rounding the value. If we round the value, we
+            will retain totals
+        large_path: path to save df_large to. Default is to not save
+
+    Output:
+        edited df_large dataframe'''
+
+    # Handle default for large_cols
+    if large_cols == False:
+            large_cols = small_cols
+
+    # Check that large_cols and small_cols have same number of attributes
+    if len(small_cols) != len(large_cols):
+        print('Different number of small_cols and large_cols')
+        return False
+
+    # Check that small_cols are actually in dataframe
+    if not set(small_cols).issubset(set(df_small.columns)):
+        print('small_cols are not in dataframe')
+        return False
+
+    # Check that the type is either fractional area or winner take all
+    if agg_type != 'fractional' and agg_type != 'winner take all':
+        print('incorrect aggregation type')
+        return False
+
+    # If we are not aggregating on area check if the aggregation attribute
+    # is in the dataframe
+    if agg_on != 'area' and agg_on not in df_large.columns:
+        print('aggregation attribute not in dataframe')
+        return False
+
+    # Let the index of ths large dataframe be an integer for indexing purposes
+    df_large.index = df_large.index.astype(int)
+
+    # Drop large_cols in large shp
+    drop_cols = set(large_cols).intersection(set(df_large.columns))
+    df_large = df_large.drop(columns=drop_cols)
+
+    # Initialize the new series in the large shp
+    for col in large_cols:
+        df_large[col] = 0.0
+
+    # construct r-tree spatial index
+    si = df_large.sindex
+
+    # Get centroid for each geometry in large shapefile
+    df_large['centroid'] = df_large['geometry'].centroid
+
+    # Find appropriate match between geometries
+    for ix, row in df_small.iterrows():
+
+        # initialize fractional area series, this will give what ratio to
+        # aggregate to each large geometry
+        frac_agg = pd.Series(dtype=float)
+
+        # Get potential matches
+        small_poly = row['geometry']
+        potential_matches = [df_large.index[i] for i in 
+            list(si.intersection(small_poly.bounds))]
+
+        # No intersections with bounding boxes. Find nearest centroid
+        if len(potential_matches) == 0:
+            small_centroid = small_poly.centroid
+            dist_series = df_large['centroid'].apply(lambda x:
+                small_centroid.distance(x)) 
+            frac_agg.at[dist_series.idxmin()] = 1
+
+        # Only one intersection with bounding box
+        elif len(potential_matches) == 1:
+            frac_agg.at[potential_matches[0]] = 1
+
+        # More than one intersection with bounding box
+        else:
+            agg_df = df_large.loc[potential_matches, :]
+
+            # Aggregate on proper column
+            if agg_on == 'area':
+                frac_agg = agg_df['geometry'].apply(lambda x:
+                    x.intersection(small_poly).area / small_poly.area)
+
+                # Add proportion that does not intersect to the large geometry
+                # with the largest intersection
+                leftover = 1 - frac_agg.sum()
+                frac_agg.at[frac_agg.idxmax()] += leftover
+
+            else:
+                agg_df[agg_on] = agg_df[agg_on].astype(float)
+                agg_col_sum = agg_df[agg_on].sum()
+                print(agg_col_sum)
+                frac_agg = agg_df[agg_on].apply(lambda x:
+                    float(x) / agg_col_sum)
+
+        # Update value for large geometry depending on aggregate type
+        for j, col in enumerate(large_cols):
+            # Winner take all update
+            if agg_type == 'winner take all':
+                large_ix = frac_agg.idxmax()
+                df_large.at[large_ix, col] += df_small.at[ix, small_cols[j]]
+
+            # Fractional update
+            elif agg_type == 'fractional':
+                # Add the correct fraction
+                for ix2, val in frac_agg.iteritems():
+                    df_large.at[ix2, col] += df_small.at[
+                        ix, small_cols[j]] * val
+
+                # Round if necessary
+                if agg_round:
+
+                    # round and find the indexes to round up
+                    round_down = df_large[col].apply(lambda x: np.floor(x))
+                    decimal_val = df_large[col] - round_down
+                    n = int(np.round(decimal_val.sum()))
+                    round_up_ix = list(decimal_val.nlargest(n).index)
+                    print(df_large[col])
+                    print(decimal_val)
+                    print(round_down)
+                    print('----------------------------------------------')
+                    # Round everything down and then increment the ones that
+                    # have the highest decimal value
+                    df_large[col] = round_down
+                    for ix3 in round_up_ix:
+                        df_large.at[ix3, col] += 1
+
+    # Set column value as integer
+    if agg_round:
+        df_large[col] = df_large[col].astype(int)
+
+    # Save and return. also drop centroid attribute
+    df_large = df_large.drop(columns=['centroid'])
+    if large_path:
+        fm.save_shapefile(df_large, large_path)
+    return df_large
