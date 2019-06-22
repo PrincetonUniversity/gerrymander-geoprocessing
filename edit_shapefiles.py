@@ -72,8 +72,8 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
     just mean more fine geographic boundaries. (i.e. census blocks are smaller
     than counties)
 
-    We use the greatest area method. However, when no intersection with bounding
-    box occurs, we simply use the nearest centroid.
+    We use the greatest area method. However, when no intersection occurs, we 
+    simply use the nearest centroid.
 
     NOTE: By default interpolates a string type because it is a label
 
@@ -126,18 +126,22 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
         potential_matches = [df_large.index[i] for i in 
             list(si.intersection(small_poly.bounds))]
 
-        # No intersections with bounding boxes. Find nearest centroid
+        # Only keep matches that have intersections
+        potential_matches = [m for m in potential_matches 
+            if df_large.at[m, 'geometry'].intersection(small_poly).area > 0]
+
+        # No intersections. Find nearest centroid
         if len(potential_matches) == 0:
             small_centroid = small_poly.centroid
             dist_series = df_large['centroid'].apply(lambda x:
                 small_centroid.distance(x))
             large_ix = dist_series.idxmin()             
 
-        # One intersection with bounding box. Only one match
+        # One intersection. Only one match
         elif len(potential_matches) == 1:
             large_ix = potential_matches[0]
 
-        # Multiple intersections with bounding box. compare fractional area
+        # Multiple intersections. compare fractional area
         # of intersection
         else:
             area_df = df_large.loc[potential_matches, :]
@@ -245,18 +249,22 @@ def aggregate(df_small, small_cols, df_large, large_cols=False,
         potential_matches = [df_large.index[i] for i in 
             list(si.intersection(small_poly.bounds))]
 
-        # No intersections with bounding boxes. Find nearest centroid
+        # Only keep matches that have intersections
+        potential_matches = [m for m in potential_matches 
+            if df_large.at[m, 'geometry'].intersection(small_poly).area > 0]
+
+        # No intersections. Find nearest centroid
         if len(potential_matches) == 0:
             small_centroid = small_poly.centroid
             dist_series = df_large['centroid'].apply(lambda x:
                 small_centroid.distance(x)) 
             frac_agg.at[dist_series.idxmin()] = 1
 
-        # Only one intersection with bounding box
+        # Only one intersecting geometry
         elif len(potential_matches) == 1:
             frac_agg.at[potential_matches[0]] = 1
 
-        # More than one intersection with bounding box
+        # More than one intersecting geometry
         else:
             agg_df = df_large.loc[potential_matches, :]
 
@@ -299,10 +307,7 @@ def aggregate(df_small, small_cols, df_large, large_cols=False,
                     decimal_val = df_large[col] - round_down
                     n = int(np.round(decimal_val.sum()))
                     round_up_ix = list(decimal_val.nlargest(n).index)
-                    print(df_large[col])
-                    print(decimal_val)
-                    print(round_down)
-                    print('----------------------------------------------')
+
                     # Round everything down and then increment the ones that
                     # have the highest decimal value
                     df_large[col] = round_down
