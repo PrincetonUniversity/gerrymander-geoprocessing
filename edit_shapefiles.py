@@ -127,24 +127,24 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
             list(si.intersection(small_poly.bounds))]
 
         # Only keep matches that have intersections
-        potential_matches = [m for m in potential_matches 
+        matches = [m for m in potential_matches 
             if df_large.at[m, 'geometry'].intersection(small_poly).area > 0]
 
         # No intersections. Find nearest centroid
-        if len(potential_matches) == 0:
+        if len(matches) == 0:
             small_centroid = small_poly.centroid
             dist_series = df_large['centroid'].apply(lambda x:
                 small_centroid.distance(x))
             large_ix = dist_series.idxmin()             
 
         # One intersection. Only one match
-        elif len(potential_matches) == 1:
-            large_ix = potential_matches[0]
+        elif len(matches) == 1:
+            large_ix = matches[0]
 
         # Multiple intersections. compare fractional area
         # of intersection
         else:
-            area_df = df_large.loc[potential_matches, :]
+            area_df = df_large.loc[matches, :]
             area_series = area_df['geometry'].apply(lambda x: 
                 x.intersection(small_poly).area / small_poly.area)
             large_ix = area_series.idxmax()
@@ -158,168 +158,182 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
         fm.save_shapefile(df_small, small_path)
     return df_small
 
-def aggregate(df_small, small_cols, df_large, large_cols=False, 
-    agg_type='fractional', agg_on='area', agg_round=False, large_path=False):
+def distribute_values(df_source, source_cols, df_target, target_cols=False, 
+    distribute_type='fractional', distribute_on='area', distribute_round=False, 
+    distribute_path=False):
     '''
-    Aggregate attribute values of small geometries into the larger geometry.
+    Distribute attribute values of source geometries into the target geometries
 
     An example of this would be calculating population in generated precincts.
-    We would take census blocks (the small geometries) and sum up their 
-    values into the precincts (larger geometries)
+    We would take census blocks (the source geometries) and sum up their 
+    values into the precincts (target geometries). This is an example of
+    aggregation
 
-    There are two types of aggregation. fractional or winner take all. 
+    Another example would be racial census tract data and disaggregating it to
+    the census block level. This is an example of disaggregation
 
-    We also can aggregate on area or on another attribute
+    There are two types of aggregation. fractional or winner take all. For
+    disaggregation, we will rarely if ever use winner take all
 
-    For small geometries that do not have any intersection with large
-    
+    We can distribute values on area or on another attribute such as population.
+    However, theis aggregation attribute must be in the target dataframe
+
+    For source geometries that do not intersect with any large geometries, we
+    find the nearest centroid
+
+    We give an option to round values and always retain totals. We als give an 
+    option to save the updated large shapefile if given a path
+
     Arguments:
-        df_small: smaller shapefile providing the aggregation values
-        small_cols: LIST of columns/attributes to aggregate on
-        df_large: larger shapefile receiving aggregated values
-        large_cols: LIST of names of attributes for values being aggregated.
-            elements in this list correspond to elements in small_cols with
-            the same index. Default is just the names of the columns in
-            small_cols
-        agg_type: 'fractional' or 'winner take all'. form of aggregation. If 
-            a small geometry intersects two larger geometries, then its 
-            values will be either fractionally distributed if 'fractional'
-            or given to the large geometry with the most intersection if
-            'winner take all'. Default is fractional, which is most common
-        agg_on: attribute to aggregate on. Default will be area
-        agg_round: whether to round values. If it is True, then keep fractional
-            sums rather than rounding the value. If we round the value, we
-            will retain totals
-        large_path: path to save df_large to. Default is to not save
+        df_source: source shapefile providing the values to distribute
+        source_cols: LIST of names of attributes in df_source to distribute
+        df_target: target shapefile receiving values being distributed
+        target_cols: LIST of names of attributes to create df_target. Elements
+            in this list correpond to elements in source_cols with the same
+            index. Default is just the name of the columns in the list 
+            source_cols
+        distribute_type: 'fractional' or 'winner take all'. Self-explantory.
+            default is 'fractional'
+        distribute_on: Either area or an attribute in target_df to distribute
+            values proportional to. For disaggregation usually do not want to
+            use area as the distributing attribute.
+        distribute_round: whether to round values. If True, then we will
+            round values such that we retain totals. If False, will simply
+            leave distributed values as floats
+        distribute_path: path to save df_target to. Default is not to save
 
     Output:
-        edited df_large dataframe'''
+        edited df_target dataframe'''
 
-    # Handle default for large_cols
-    if large_cols == False:
-            large_cols = small_cols
+    # Handle default for target_cols
+    if target_cols == False:
+            target_cols = source_cols
 
-    # Check that large_cols and small_cols have same number of attributes
-    if len(small_cols) != len(large_cols):
-        print('Different number of small_cols and large_cols')
+    # Check that target_cols and source_cols have same number of attributes
+    if len(source_cols) != len(target_cols):
+        print('Different number of source_cols and target_cols')
         return False
 
-    # Check that small_cols are actually in dataframe
-    if not set(small_cols).issubset(set(df_small.columns)):
-        print('small_cols are not in dataframe')
+    # Check that source_cols are actually in dataframe
+    if not set(source_cols).issubset(set(df_source.columns)):
+        print('source_cols are not in dataframe')
         return False
 
     # Check that the type is either fractional area or winner take all
-    if agg_type != 'fractional' and agg_type != 'winner take all':
+    if distribute_type != 'fractional' and distribute_type != 'winner take all':
         print('incorrect aggregation type')
         return False
 
-    # If we are not aggregating on area check if the aggregation attribute
+    # If we are not distributing on area check if the distributing attribute
     # is in the dataframe
-    if agg_on != 'area' and agg_on not in df_large.columns:
+    if distribute_on != 'area' and distribute_on not in df_target.columns:
         print('aggregation attribute not in dataframe')
         return False
 
     # Let the index of ths large dataframe be an integer for indexing purposes
-    df_large.index = df_large.index.astype(int)
+    df_target.index = df_target.index.astype(int)
 
-    # Drop large_cols in large shp
-    drop_cols = set(large_cols).intersection(set(df_large.columns))
-    df_large = df_large.drop(columns=drop_cols)
+    # Drop target_cols in large shp
+    drop_cols = set(target_cols).intersection(set(df_target.columns))
+    df_target = df_target.drop(columns=drop_cols)
 
     # Initialize the new series in the large shp
-    for col in large_cols:
-        df_large[col] = 0.0
+    for col in target_cols:
+        df_target[col] = 0.0
+
+    # Ensure that source columns are floats for consisting adding
+    for col in source_cols:
+        df_source[col] = df_source[col].astype(float)
 
     # construct r-tree spatial index
-    si = df_large.sindex
+    si = df_target.sindex
 
-    # Get centroid for each geometry in large shapefile
-    df_large['centroid'] = df_large['geometry'].centroid
+    # Get centroid for each geometry in target shapefile
+    df_target['centroid'] = df_target['geometry'].centroid
 
     # Find appropriate match between geometries
-    for ix, row in df_small.iterrows():
+    for ix, row in df_source.iterrows():
 
         # initialize fractional area series, this will give what ratio to
-        # aggregate to each large geometry
+        # aggregate to each target geometry
         frac_agg = pd.Series(dtype=float)
 
         # Get potential matches
-        small_poly = row['geometry']
-        potential_matches = [df_large.index[i] for i in 
-            list(si.intersection(small_poly.bounds))]
+        source_poly = row['geometry']
+        matches = [df_target.index[i] for i in 
+            list(si.intersection(source_poly.bounds))]
 
         # Only keep matches that have intersections
-        potential_matches = [m for m in potential_matches 
-            if df_large.at[m, 'geometry'].intersection(small_poly).area > 0]
+        matches = [m for m in matches 
+            if df_target.at[m, 'geometry'].intersection(source_poly).area > 0]
 
         # No intersections. Find nearest centroid
-        if len(potential_matches) == 0:
-            small_centroid = small_poly.centroid
-            dist_series = df_large['centroid'].apply(lambda x:
-                small_centroid.distance(x)) 
+        if len(matches) == 0:
+            source_centroid = source_poly.centroid
+            dist_series = df_target['centroid'].apply(lambda x:
+                source_centroid.distance(x)) 
             frac_agg.at[dist_series.idxmin()] = 1
 
         # Only one intersecting geometry
-        elif len(potential_matches) == 1:
-            frac_agg.at[potential_matches[0]] = 1
+        elif len(matches) == 1:
+            frac_agg.at[matches[0]] = 1
 
         # More than one intersecting geometry
         else:
-            agg_df = df_large.loc[potential_matches, :]
+            agg_df = df_target.loc[matches, :]
 
             # Aggregate on proper column
-            if agg_on == 'area':
+            if distribute_on == 'area':
                 frac_agg = agg_df['geometry'].apply(lambda x:
-                    x.intersection(small_poly).area / small_poly.area)
+                    x.intersection(source_poly).area / source_poly.area)
 
-                # Add proportion that does not intersect to the large geometry
+                # Add proportion that does not intersect to the target geometry
                 # with the largest intersection
                 leftover = 1 - frac_agg.sum()
                 frac_agg.at[frac_agg.idxmax()] += leftover
 
             else:
-                agg_df[agg_on] = agg_df[agg_on].astype(float)
-                agg_col_sum = agg_df[agg_on].sum()
+                agg_df[distribute_on] = agg_df[distribute_on].astype(float)
+                agg_col_sum = agg_df[distribute_on].sum()
                 print(agg_col_sum)
-                frac_agg = agg_df[agg_on].apply(lambda x:
+                frac_agg = agg_df[distribute_on].apply(lambda x:
                     float(x) / agg_col_sum)
 
-        # Update value for large geometry depending on aggregate type
-        for j, col in enumerate(large_cols):
+        # Update value for target geometry depending on aggregate type
+        for j, col in enumerate(target_cols):
             # Winner take all update
-            if agg_type == 'winner take all':
-                large_ix = frac_agg.idxmax()
-                df_large.at[large_ix, col] += df_small.at[ix, small_cols[j]]
+            if distribute_type == 'winner take all':
+                target_ix = frac_agg.idxmax()
+                df_target.at[target_ix, col] += df_source.at[ix, source_cols[j]]
 
             # Fractional update
-            elif agg_type == 'fractional':
+            elif distribute_type == 'fractional':
                 # Add the correct fraction
                 for ix2, val in frac_agg.iteritems():
-                    df_large.at[ix2, col] += df_small.at[
-                        ix, small_cols[j]] * val
+                    df_target.at[ix2, col] += df_source.at[
+                        ix, source_cols[j]] * val
 
                 # Round if necessary
-                if agg_round:
+                if distribute_round:
 
                     # round and find the indexes to round up
-                    round_down = df_large[col].apply(lambda x: np.floor(x))
-                    decimal_val = df_large[col] - round_down
+                    round_down = df_target[col].apply(lambda x: np.floor(x))
+                    decimal_val = df_target[col] - round_down
                     n = int(np.round(decimal_val.sum()))
                     round_up_ix = list(decimal_val.nlargest(n).index)
 
                     # Round everything down and then increment the ones that
                     # have the highest decimal value
-                    df_large[col] = round_down
+                    df_target[col] = round_down
                     for ix3 in round_up_ix:
-                        df_large.at[ix3, col] += 1
+                        df_target.at[ix3, col] += 1
 
     # Set column value as integer
-    if agg_round:
-        df_large[col] = df_large[col].astype(int)
+    if distribute_round:
+        df_target[col] = df_target[col].astype(int)
 
     # Save and return. also drop centroid attribute
-    df_large = df_large.drop(columns=['centroid'])
-    if large_path:
-        fm.save_shapefile(df_large, large_path)
-    return df_large
+    df_target = df_target.drop(columns=['centroid'])
+    if distribute_path:
+        fm.save_shapefile(df_target, distribute_path)
+    return df_target
