@@ -5,9 +5,11 @@ Helper methods to calculate properties within shapefiles
 from shapely.geometry import Polygon
 from shapely.geometry import Point
 import numpy as np
+import pysal as ps
+import pandas as pd
 
-def real_rook_contiguity(df, geo_id = 'geometry',
-                         nbr_id='neighbors',struct_type='list'):
+def old_real_rook_contiguity(df, geo_id = 'geometry', nbr_id='neighbors',
+    struct_type='list'):
     ''' Generates neighbor list using rook contiguity for a geodataframe.
     
     Arguments:
@@ -249,3 +251,65 @@ def check_contiguity_and_contained(df, id_attribute):
                     print('Contains Another: ' + row[id_attribute])
 
     return [noncontig, contains]
+
+def real_rook_contiguity(df, geo_id = 'geometry', nbr_id='neighbors',
+    struct_type='list'):
+    ''' Generates neighbor list using rook contiguity for a geodataframe. Pysal
+    rook contiguity sometimes fails for small borders
+    
+    Arguments:
+        df: geodataframe to apply rook contiguity to
+        geo_id = column name for geometries in dataframe
+        nbr_id = column name for neighbor list (to be generated) in dataframe
+        struct_type: determines whether neighbors are returned as a list or
+        as a dict
+        
+    Output:
+        dataframe with neighbors list for each attribute in a new column
+        called nbr_id (default name is 'neighbors')
+    '''
+    
+    # Obtain queen continuity for each shape in the dataframe. We will remove 
+    # all point contiguity. Pysal rook contiguity sometimes assumes lines
+    # with small lines are points
+    w = ps.lib.weights.contiguity.Queen.from_dataframe(df, geom_col=geo_id)
+    
+    # Initialize neighbors column
+    df[nbr_id] = pd.Series(dtype=object)   
+    
+    # Initialize neighbors for each precinct
+    for i,_ in df.iterrows():
+        struct = w.neighbors[i]
+
+        print(struct)
+        
+        # Iterate through every precinct to remove all neighbors that only 
+        # share a single point. Rook contiguity would asssume some lines are 
+        # points, so we have to use queen and then remove points
+        
+        # Obtain degree (# neighbors) of precinct
+        nb_len = len(struct)
+        
+        # Iterate through neighbor indexes in reverse order to prevent errors 
+        # due to the deletion of elements
+        for j in range(nb_len - 1, -1, -1):
+            # get the jth neighbor
+            j_nb = struct[j]
+            
+            # get the geometry for both precincts
+            i_geom = df.at[i, geo_id]
+            j_nb_geom = df.at[j_nb, geo_id]
+            
+            # If their intersection is a point, delete j_nb from i's neighbor 
+            # list do not delete in both directions. That will be taken care of
+            # eventually when i = j_nb later in the loop or before this occurs
+            geom_type = i_geom.intersection(j_nb_geom).type
+            if geom_type == 'Point' or geom_type == 'MultiPoint':
+                del struct[j]
+        
+        # Assign to dataframe according to the structure passed in
+        if struct_type == 'list':
+            df.at[i, nbr_id] = struct
+        elif struct_type == 'dict':
+            df.at[i, nbr_id] = dict.fromkeys(struct)
+    return df

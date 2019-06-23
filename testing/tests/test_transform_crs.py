@@ -62,8 +62,8 @@ def apply_crs_test(filename, crs='epsg:4269', default=True):
 	# Check that the projection is epsg:4269
 	shp = fm.load_shapefile(path)
 
-
-	if default:
+	assert shp.crs == {'init': crs}
+	'''if default:
 		assert shp.crs == {'init': crs}
 	else:
 		converted_3395_dict = {'lon_0': 0,
@@ -74,7 +74,7 @@ def apply_crs_test(filename, crs='epsg:4269', default=True):
 								'x_0': 0,
 								'units': 'm',
 								'lat_ts':0}
-		assert shp.crs == converted_3395_dict
+		assert shp.crs == converted_3395_dict'''
 
 	# clean up testing folders
 	clean_test_files()
@@ -86,23 +86,23 @@ class TestTranformCRS:
 		filename = 'projection.shp'
 		apply_crs_test(filename)
 
-	# def test_default_no_projection(self):
-	# 	''' Test conversion to default CRS given that the shapefile doesn't 
-	# 	already have a projection '''
-	# 	filename = 'no_projection.shp'
-	# 	apply_crs_test(filename)
+	def test_default_no_projection(self):
+		''' Test conversion to default CRS given that the shapefile doesn't 
+		already have a projection '''
+		filename = 'no_projection.shp'
+		apply_crs_test(filename)
 
-	# def test_input_with_projection(self):
-	# 	''' Test conversion to input CRS given that the shapefile already
-	# 	has a projection '''
-	# 	filename = 'projection.shp'
-	# 	apply_crs_test(filename, 'epsg:3395', False)
+	def test_input_with_projection(self):
+		''' Test conversion to input CRS given that the shapefile already
+		has a projection '''
+		filename = 'projection.shp'
+		apply_crs_test(filename, 'epsg:3395', False)
 
-	# def test_input_no_projection(self):
-	# 	''' Test conversion to input CRS given that the shapefile doesn't 
-	# 	already have a projection '''
-	# 	filename = 'no_projection.shp'
-	# 	apply_crs_test(filename, 'epsg:3395', False)
+	def test_input_no_projection(self):
+		''' Test conversion to input CRS given that the shapefile doesn't 
+		already have a projection '''
+		filename = 'no_projection.shp'
+		apply_crs_test(filename, 'epsg:3395', False)
 
 
 
