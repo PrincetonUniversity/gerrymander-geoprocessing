@@ -1,7 +1,9 @@
 '''
 Tests for real rook contiguity function
 '''
-
+####################
+import pysal as ps
+####################
 import os, sys
 if os.getcwd()[-5:] == 'tests':
 	os.chdir('../..')
@@ -94,17 +96,13 @@ class TestRealRookContiguity:
 		''' Test rook contiguity on 2x2 grid when there is a small border
 		between the top right and bottom left shapes'''
 		
-				# Load shp file
+		# Load shp file
 		direc_path = os.getcwd() + '/testing/test_data/real_rook_contiguity/'
 		file_path = direc_path + 'small_border.shp'
 		df = fm.load_shapefile(file_path)
 
 		# perform real rook contiguity
 		df = real_rook_contiguity(df)
-
-		print(df)
-
-		print(df.at[1, 'geometry'].intersection(df.at[2, 'geometry']))
 
 		# Check bottom left neighbors
 		bot_left_neighbors_list = df.at[0, 'neighbors']
@@ -134,13 +132,17 @@ class TestRealRookContiguity:
 		assert 2 in top_right_neighbors_list
 		assert 3 not in top_right_neighbors_list
 
-	# def test_gap(self):
-	# 	''' Test contiguity on two shapes that share no border '''
-	# 	return
+	def test_gap(self):
+		''' Test contiguity on two shapes that share no border '''
 
+		# Load shp file
+		direc_path = os.getcwd() + '/testing/test_data/real_rook_contiguity/'
+		file_path = direc_path + 'gap.shp'
+		df = fm.load_shapefile(file_path)
 
+		# perform real rook contiguity
+		df = real_rook_contiguity(df)
 
-
-
-
-
+		# Check that neighbor lists are empty
+		assert [] == df.at[0, 'neighbors']
+		assert [] == df.at[1, 'neighbors']
