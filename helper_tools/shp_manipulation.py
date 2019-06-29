@@ -9,8 +9,9 @@ from shapely.geometry import Polygon
 
 # import helper tools as if running from parent directory
 import helper_tools.file_management as fm
+import helper_tools.shp_calculations as sc
 
-def merge_fully_contained(df, geo_id = 'geometry',
+def old_merge_fully_contained(df, geo_id = 'geometry',
                           nbr_id='neighbors', cols_to_add=['area']):
     '''If any geometry is contained entirely within another geometry, this
     function merges it into the larger geometry.  Slightly distinct from the
@@ -322,3 +323,82 @@ def generate_bounding_frame(df):
     frame_df = gpd.GeoDataFrame()
     frame_df['geometry'] = [frame]
     return frame_df
+
+def merge_fully_contained(df, geo_name='geometry', nbr_name='neighbors',
+                          cols_to_add=[]):
+    '''Merge geometries contained entirely by another geometry
+
+    Arguments:
+        df: DataFrame
+        geo_name: column name for geometries in DataFrame
+        nbr_name: column name for neighbors in DataFrame
+        cols_to_add: attributes that should be combined when precincts are
+            merged
+
+    Output:
+        DataFrame after merges
+    '''
+
+    # create neighbor list if it does not exist
+    if nbr_name not in df.columns:
+        df = sc.real_rook_contiguity(df)
+
+    # Initialize list of rows to drop at the end
+    ix_to_drop = []
+
+    # iterate over all geometries
+    for ix, row in df.iterrows():
+
+        # Create polygon from its exterior coordinates
+        poly = Polygon(list(row[geo_name].exterior.coords))
+
+        # if the exterior created polygon is a subset of the actual poly
+        # then no other geometry can be contained within the current geometry
+        if row[geo_name].contains(poly):
+            continue
+
+        # initialize list of contained neighbor ids
+        nb_ix_del = []
+
+        # iterate through the lsit of neighors
+        possibly_contained = row[nbr_name]
+        for nbr in possibly_contained:
+
+            nbr_poly = df.at[nbr, geo_name]
+
+            # check if the intersection of current geometry and its neighbor
+            # is equal to the neighbor. This demonstrates neighbor is contained
+            if nbr_poly == nbr_poly.intersection(poly):
+
+                # To account for nested, we say neighbors of contained 
+                # neighbors are possibly contained
+                for nbr_nbr in df.at[nbr, nbr_name]:
+                    if nbr_nbr not in possibly_contained and nbr_nbr != ix:
+                        possibly_contained.append(nbr_nbr)
+
+                # Add geometry of nbr to geometry of ix
+                polys = [row[geo_name], df.at[nbr, geo_name]]
+                df.at[ix, geo_name] = shp.ops.cascaded_union(polys)
+
+                # Add inputted columns
+                for col in cols_to_add:
+                    if col in df.columns:
+                        df.at[ix, col] = row[col] + df.at[nbr, col]
+
+                # add neighbor to list to drop
+                ix_to_drop.append(nbr)
+
+        # delete neighbor references from the current precinct. Iterate in
+        for nb_ix in reversed(nb_ix_del):
+            del(df.at[ix, nbr_name][nb_ix])
+
+    # Drop contained geometries from the dataframe and return
+    return df.drop(ix_to_drop).reset_index(drop=True)
+
+
+
+
+
+
+
+

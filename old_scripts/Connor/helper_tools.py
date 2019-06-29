@@ -94,7 +94,7 @@ def cropped_bordered_image(img_path):
     while (img_arr[:,left] == color).all():
         left += 1
     right = xlen-1
-    while (img_arr[:,right] == color).all():
+    while (img_arr[:,right] == color).all():1
         right -= 1
 
     

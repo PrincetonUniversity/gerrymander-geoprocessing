@@ -8,106 +8,6 @@ import numpy as np
 import pysal as ps
 import pandas as pd
 
-def old_real_rook_contiguity(df, geo_id = 'geometry', nbr_id='neighbors',
-    struct_type='list'):
-    ''' Generates neighbor list using rook contiguity for a geodataframe.
-    
-    Arguments:
-        df: geodataframe to apply rook contiguity to
-        geo_id = column name for geometries in dataframe
-        nbr_id = column name for neighbor list (to be generated) in dataframe
-        struct_type: determines whether neighbors are returned as a list or
-        as a dict
-        
-    Output:
-        dataframe with neighbors list for each attribute in a new column
-        called nbr_id (default name is 'neighbors')
-    '''
-    
-    # Obtain queen continuity for each shape in the dataframe. We will remove 
-    # all point contiguity. Shapely rook contiguity sometimes assumes lines
-    # with small lines are points
-    w = ps.weights.Queen.from_dataframe(df, geom_col=geo_id)
-    
-    # Initialize neighbors column
-    df[nbr_id] = pd.Series(dtype=object)   
-    
-    # Initialize neighbors for each precinct
-    for i,_ in df.iterrows():
-        struct = w.neighbors[i]
-        
-        # Iterate through every precinct to remove all neighbors that only 
-        # share a single point. Rook contiguity would asssume some lines are 
-        # points, so we have to use queen and then remove points
-        
-        # Obtain degree (# neighbors) of precinct
-        nb_len = len(struct)
-        
-        # Iterate through neighbor indexes in reverse order to prevent errors 
-        # due to the deletion of elements
-        for j in range(nb_len - 1, -1, -1):
-            # get the jth neighbor
-            j_nb = struct[j]
-            
-            # get the geometry for both precincts
-            i_geom = df.at[i, geo_id]
-            j_nb_geom = df.at[j_nb, geo_id]
-            
-            # If their intersection is a point, delete j_nb from i's neighbor 
-            # list do not delete in both directions. That will be taken care of
-            # eventually when i = j_nb later in the loop or before this occurs
-            geom_type = i_geom.intersection(j_nb_geom).type
-            if geom_type == 'Point' or geom_type == 'MultiPoint':
-                del struct[j]
-        
-        # Assign to dataframe according to the structure passed in
-        if struct_type == 'list':
-            df.at[i, nbr_id] = struct
-        elif struct_type == 'dict':
-            df.at[i, nbr_id] = dict.fromkeys(struct)
-    return df
-
-def get_shared_perims(df):
-    ''' Return a dataframe with a new field, neighbors, containing a dictionary
-    where the keys are indices of rook-contiguous neighbors and the values are
-    shared perimeters.
-    
-    Arguments:
-        df: geodataframe
-    
-    Output:
-        geodataframe, with shared perimeter length in its dictionary
-    '''
-    df = real_rook_contiguity(df, struct_type='dict')
-    
-    # iterate over all precincts to set shared_perims
-    for i,_ in df.iterrows():
-        
-        # iterate over the neighbors of precinct i
-        for key in df.at[i, 'neighbors']:
-        
-            # obtain the boundary between current precinct and its j neighbor
-            shape = df.at[i, 'geometry'].intersection(df.at[key, 'geometry'])
-            
-            # get shared_perim length (casework)
-            if shape.type == 'GeometryCollection' or \
-                    shape.type == 'MultiLineString':
-                length = 0
-                for line in shape.geoms:
-                    if line.type == 'LineString':
-                        length += line.length
-            elif shape.type == 'LineString':
-                length = shape.length
-            else:
-                print(shape.type)
-                print(i)
-                print(key)
-                print ('Unexpected boundary')
-                length = -1
-                
-            df.at[i, 'neighbors'][key] = length
-    return df
-
 def pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, img_xmin, img_xlen, 
                 img_ymin, img_ylen):
     '''Returns the pixel color corresponding to a given Shapely point, given 
@@ -357,4 +257,6 @@ def calculate_shared_perimeters(df):
                 print('Unexpected Boundary')
                 row['neighbors'][key]
     return df
+
+
 
