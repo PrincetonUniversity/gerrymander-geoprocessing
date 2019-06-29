@@ -252,7 +252,7 @@ def check_contiguity_and_contained(df, id_attribute):
 
     return [noncontig, contains]
 
-def real_rook_contiguity(df, geo_id = 'geometry', nbr_id='neighbors',
+def real_rook_contiguity(df, geo_id='geometry', nbr_id='neighbors',
     struct_type='list'):
     ''' Generates neighbor list using rook contiguity for a geodataframe. Pysal
     rook contiguity sometimes fails for small borders
@@ -313,3 +313,48 @@ def real_rook_contiguity(df, geo_id = 'geometry', nbr_id='neighbors',
         elif struct_type == 'dict':
             df.at[i, nbr_id] = dict.fromkeys(struct)
     return df
+
+def calculate_shared_perimeters(df):
+    ''' Add a neighbor dictionary for each geometry as well as the length of 
+    the shared perimeter with each neighbor. In the dictionary, the keys are
+    indices of rook-contiguous neighbors
+
+    Argument:
+        df: geodataframe
+
+    Output:
+        df with neighbors and shared perimeters added
+    '''
+
+    # get neighbors with dictionary
+    df = real_rook_contiguity(df, struct_type='dict')
+
+    # iterate over each geometry and its neighborsto set shared perimeters
+    for ix, row in df.iterrows():
+        for key in row['neighbors']:
+
+            # obtain boundary between geometry and its neighbor
+            s = row['geometry'].intersection(df.at[key, 'geometry'])
+
+            # intersection is noncontiguous
+            if s.type == 'GeometryCollection' or s.type == 'MultiLineString':
+                row['neighbors'][key] = 0
+
+                # add length of LineString
+                for line in s.geoms:
+                    if line.type == 'LineString':
+                        row['neighbors'][key] += line.length
+
+            # intersection is a single line
+            elif s.type == 'LineString':
+                row['neighbors'][key] = s.length
+
+            # if shape or point print issues and set length to -1
+            else:
+                print(s.type)
+                print(ix)
+                print(key)
+                print('Unexpected Boundary')
+                row['neighbors'][key]
+    return df
+

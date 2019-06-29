@@ -1,9 +1,6 @@
 '''
 Tests for real rook contiguity function
 '''
-####################
-import pysal as ps
-####################
 import os, sys
 if os.getcwd()[-5:] == 'tests':
 	os.chdir('../..')
@@ -22,8 +19,6 @@ class TestRealRookContiguity:
 
 		# perform real rook contiguity
 		df = real_rook_contiguity(df)
-
-		print(df)
 
 		# Check bottom left neighbors
 		bot_left_neighbors_list = df.at[0, 'neighbors']
