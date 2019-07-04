@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from helper_tools.shp_calculations import calculate_shared_perimeters
 import helper_tools.file_management as fm
 
-class TestRealRookContiguity:
+class TestCalculateSharedPerimeters:
 	def test_grid(self):
 		''' Test for 2x2 box grid '''
 		# load shp file

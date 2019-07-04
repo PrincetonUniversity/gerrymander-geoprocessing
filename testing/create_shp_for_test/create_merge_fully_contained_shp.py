@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Create shapefile to test the transform crs function
+Create shapefile to test merge fully contained 
 """
 import os
 os.chdir('..')
@@ -11,12 +11,6 @@ from shapely.geometry import Polygon
 
 path_reg = os.getcwd() + "/test_data/merge_fully_contained/regular.shp"
 path_nest = os.getcwd() + "/test_data/merge_fully_contained/nested.shp"
-
-'''
-grid: 2x2 square grid
-mult_bound: top geometry intersects with bottom geometry in two locations.
-	the middle geometry is nested between the two
-'''
 
 # Initialize geodataframes
 df_reg = gpd.GeoDataFrame(columns=['name', 'value', 'geometry'])
