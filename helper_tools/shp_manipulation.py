@@ -7,6 +7,7 @@ import pandas as pd
 import shapely as shp
 from shapely.geometry import Polygon
 from collections import Counter
+import numpy as np
 
 # import helper tools as if running from parent directory
 import helper_tools.file_management as fm
