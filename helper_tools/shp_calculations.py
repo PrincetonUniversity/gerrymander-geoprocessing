@@ -79,7 +79,7 @@ def fraction_shared_perim(nbrs, indices, perim):
     Arguments: 
         nbrs: dictionary with keys as neighbor indices, values as shared perims
         indices: indices for which we care about the fraction shared
-        perim: perimeter of shape
+        perim: size of the perimeter of shape
     
     Output:
         fraction of perimter assigned
@@ -87,7 +87,7 @@ def fraction_shared_perim(nbrs, indices, perim):
     # calcluate total perimeter shared with shapes at indices
     shared_perim = sum([nbrs[key] for key in nbrs if key in indices])
     
-    return shared_perim/perim
+    return shared_perim / perim
 
 
 def check_contiguity_and_contained(df, id_attribute):
@@ -180,8 +180,6 @@ def real_rook_contiguity(df, geo_id='geometry', nbr_id='neighbors',
     # Initialize neighbors for each precinct
     for i,_ in df.iterrows():
         struct = w.neighbors[i]
-
-        print(struct)
         
         # Iterate through every precinct to remove all neighbors that only 
         # share a single point. Rook contiguity would asssume some lines are 

@@ -592,7 +592,7 @@ def merge_geometries(df, indices_to_merge, cols_to_add=[]):
                                            indices_to_merge,\
                                            df.at[id, 'geometry'].length)\
                     for id in indices_to_merge]
-        i = indices_to_merge[fractions.index(min(fractions))]
+        i = indices_to_merge[fractions.index(min(fractions))]`
 
         # update neighbors and shared_perims
         cur_prec = df.at[i, 'neighbors']
