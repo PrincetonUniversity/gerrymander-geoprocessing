@@ -1,12 +1,14 @@
 """
 Helper methods to calculate properties within shapefiles
 """
-
+import shapely as shp
 from shapely.geometry import Polygon
 from shapely.geometry import Point
 import numpy as np
 import pysal as ps
 import pandas as pd
+
+import helper_tools.file_management as fm
 
 def pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, img_xmin, img_xlen, 
                 img_ymin, img_ylen):
@@ -256,5 +258,56 @@ def calculate_shared_perimeters(df):
                 row['neighbors'][key]
     return df
 
+def compare_shapefile_difference(shp_paths1, shp_paths2, verbose=False):
+    '''
+    Compare shapefiles to check how much difference is between them in terms
+    of ratio of the first shapefile. 
 
+    A result of 0.90 ratio between the two shapefiles means that 90 percent
+    of the first shapefile is NOT contained in the second shapefile. First path 
+    in list1 is compared to first list in path 2. Second path in list1 is 
+    compared to second path in list 2 and so on
+
+    This is useful for comparing shapefiles received from local jurisdictions.
+
+    Arguments:
+        shp_paths1: LIST of paths to shapefiles to be compared 
+        shp_paths2:
+        verbose: whether to print the difference ratio as they
+        are calculated
+
+    Output:
+        LIST of ratio of difference as described above for each shp pair.
+        Returns false if the length of the lists are not the same
+    '''
+
+    # List of difference ratio to the first shapefile
+    out = []
+
+    # if list of shapefile lengths are not the same return false
+    if len(shp_paths1) != len(shp_paths2):
+        return False
+
+    for ix in range(len(shp_paths1)):
+        path1 = shp_paths1[ix]
+        path2 = shp_paths2[ix]
+
+        # Load in shapefiles
+        shp1 = fm.load_shapefile(path1)
+        shp2 = fm.load_shapefile(path2)
+
+        # Get full geometries
+        poly1 = shp.ops.cascaded_union(list(shp1['geometry']))
+        poly2 = shp.ops.cascaded_union(list(shp2['geometry']))
+
+        # calculate, store, and potentially print difference
+        diff = poly2.difference(poly1).area
+        out.append(diff)
+        if verbose:
+            name1 = path1.split('/')[-1]
+            name2 = path2.split('/')[-1]
+            print('Difference Between ' + name1 + ' and' + name2 + 
+                ': ' + str(out[ix]))
+
+    return out
 

@@ -6,7 +6,8 @@ import os, sys
 if os.getcwd()[-5:] == 'tests':
 	os.chdir('../..')
 sys.path.append(os.getcwd())
-from other_actions import compare_shapefile_difference
+from helper_tools.shp_calculations import compare_shapefile_difference
+import helper_tools.file_management as fm
 
 
 class TestCompareShapefileDifference:
