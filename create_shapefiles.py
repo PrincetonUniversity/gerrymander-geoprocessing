@@ -5,7 +5,7 @@ import helper_tools.shp_calculations as sc
 import helper_tools.file_management as fm
 import pandas as pd
 
-def dissolve_by_attribute(in_path, out_path, dissolve_attribute):
+def dissolve_by_attribute(in_path, dissolve_attribute, out_path=False):
 	''' 
 	Dissolve boundaries for shapefile(s) according to a given attribute. we will
 	also check for contiguity after boundaries have been dissolved.
@@ -16,16 +16,19 @@ def dissolve_by_attribute(in_path, out_path, dissolve_attribute):
 		disolve_attribute: attribute to dissolve boundaries by
 	'''
 	#  Generate dissolved shapefile
-	geo_df = fm.load_shapefile(in_path)
-	geo_df = sm.dissolve(geo_df, dissolve_attribute)
+	df = fm.load_shapefile(in_path)
+	df = sm.dissolve(df, dissolve_attribute)
 
 	# Print potential errors
-	sc.check_contiguity_and_contained(geo_df, dissolve_attribute)
+	sc.check_contiguity_and_contained(df, dissolve_attribute)
 
 	# Save shapefile
-	fm.save_shapefile(geo_df, out_path)
+	if out_path:
+		fm.save_shapefile(df, out_path)
 
-def create_bounding_frame(in_path, out_path):
+	return df
+
+def create_bounding_frame(in_path, out_path=False):
 	''' 
 	Create a bounding box around the extents of a shapefile. 
 
@@ -41,7 +44,11 @@ def create_bounding_frame(in_path, out_path):
 	# Generate bounding frame and save
 	df = fm.load_shapefile(in_path)
 	bounding_frame_df = sm.generate_bounding_frame(df)
-	fm.save_shapefile(bounding_frame_df, out_path)
+
+	if out_path:
+		fm.save_shapefile(bounding_frame_df, out_path)
+
+	return df
 
 def disaggregate_file(shp_path, disaggregate_attr, direc_path, 
 	prefix = '', suffix=''):
@@ -92,7 +99,7 @@ def disaggregate_file(shp_path, disaggregate_attr, direc_path,
 		fm.save_shapefile(df_attr, subdirec + '/' + name + '.shp')
 
 
-def merge_shapefiles(paths_to_merge, out_path, keep_cols='all'):
+def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
 	'''
 	Combine multiple shapefiles into a single shapefile
 
@@ -122,18 +129,76 @@ def merge_shapefiles(paths_to_merge, out_path, keep_cols='all'):
 
 	# Save final shapefile
 	df_final = gpd.GeoDataFrame(df_final, geometry='geometry')
-	fm.save_shapefile(df_final, out_path, exclude_cols)
 
+	if out_path:
+		fm.save_shapefile(df_final, out_path, exclude_cols)
 
+	return df_final
 
-'''
-testing notes
-	check that the correct columns are there
-	check that the correct shapes are there
+def clean_manual_classification(in_path, classification_col, out_path=False):
+	'''Generate a dissolved boundary file given of larger geometries after 
+	being given a geodataframe with smaller geometries assigned to a value
+	designated by the classification column.
 
-	What shapefiles do I need to create
+	Will auto-assign unassigned geometries using the greedy shared perimeters
+	method.
 
-	Correct shapefile
-	Three individual shapefiles
-	3 columns named ['col1', 'col2', 'col3']
-'''
+	Will also split non-contiguous geometries and merge fully contained 
+	geometries
+
+	Usually used when a user has manually classified census blocks into
+	precincts and needs to clean up their work
+
+	Arguments:
+		in_path: path dataframe containing smaller geometries
+
+		classification_col: name of colum in df that identifies which
+			larger "group" each smaller geometry belongs to.
+
+		out_path: path to save final dataframe file if applicable. Default
+			is false and will not save
+	'''
+
+	df = fm.load_shapefile(in_path)
+
+	# obtain unique values in classification column
+	class_ids = list(df[classification_col].unique())
+
+	# determine the number of larger "groups"
+	num_classes = len(class_ids)
+
+	# Check if there are any unassigned census blocks
+	if None in class_ids:
+		# decrement number of regions because nan is not an actual region
+		num_classes -= 1
+
+		# Assign unassigned blocks a unique dummy name
+		for i, _ in df[df[classification_col].isnull()].iterrows():
+			df.at[i, classification_col] = 'foobar' + str(i)
+
+	# Update the classes to include the dummy groups
+	class_ids = list(df[classification_col].unique())
+
+	# Dissolve the boundaries given the group assignments for each small geom
+	df = sm.dissolve(df, classification_col)
+
+	# Split noncontiguous geometries after the dissolve
+	df = sm.split_noncontiguous(df)
+
+	# Merge geometries fully contained in other geometries
+	df = sm.merge_fully_contained(df)
+
+	# Get the correct number of regions
+	df_nan = df[df[classification_col].str.slice(0, 6) == 'foobar']
+	ixs_to_merge = df_nan.index.to_list()
+	df = sm.merge_geometries(df, ixs_to_merge)
+
+	# drop neighbor column and reset the indexes
+	df = df.drop(columns=['neighbors'])
+	df = df.reset_index(drop=True)
+
+	# save file if necessary
+	if out_path:
+		fm.save_shapefile(df, out_path)
+
+	return df
