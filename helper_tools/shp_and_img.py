@@ -1,6 +1,11 @@
 """
 Helper methods for image based calculations
 """
+from PIL import Image
+import shapely as shp
+import numpy as np
+import operator
+import helper_tools.shp_calculations as sc
 
 def cropped_bordered_image(img_path):
     ''' Given an image with a border of one color, returns an image with the
@@ -45,9 +50,10 @@ def cropped_bordered_image(img_path):
 
     # Save new image as 'oldname cropped'
     ext = img_path.split('.')[-1]
-    filename=  '.'.join(img_path.split('.')[:-1]) + ' cropped'
+    filename=  '.'.join(img_path.split('.')[:-1]) + '_cropped'
     new_name = filename + '.' + ext
-    cropped_img = Image.fromarray(img_arr[top+1:bottom, left+1:right])
+    # cropped_img = Image.fromarray(img_arr[top+1:bottom, left+1:right])
+    cropped_img = Image.fromarray(img_arr[top:bottom, left:right])
     cropped_img.save(new_name)
     
     # crop and return array
@@ -65,7 +71,7 @@ def reduce_colors(img, num_colors):
         Modified image with reduced number of distinct RGB values
     '''
     
-    conv_img = img.convert('P', palette=Image.ADAPTIVE, colors = num_colors)
+    conv_img = img.convert('P', palette=Image.ADAPTIVE, colors=num_colors)
     return conv_img.convert('RGB')
 
 def isBlack(color):
@@ -134,14 +140,14 @@ def most_common_color(poly, img_arr, xmin, xlen, ymin, ylen, sample_limit):
         triangle = triangles[np.searchsorted(areas,r)-1]
         
         # select a point uniformly at random from this triangle
-        pt = random_pt_in_triangle(triangle)
+        pt = sc.random_pt_in_triangle(triangle)
         
         # gets size of img_arr to align it with poly
         img_xlen = len(img_arr[0])
         img_ylen = len(img_arr)
         
         # get color of pixel that corresponds to pt
-        color = pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, \
+        color = sc.pt_to_pixel_color(pt, img_arr, xmin, xlen, ymin, ylen, \
                 0, img_xlen, 0, img_ylen)
         
 

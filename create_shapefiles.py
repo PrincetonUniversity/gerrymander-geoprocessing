@@ -3,7 +3,11 @@ import geopandas as gpd
 import helper_tools.shp_manipulation as sm
 import helper_tools.shp_calculations as sc
 import helper_tools.file_management as fm
+import helper_tools.shp_and_img as si
 import pandas as pd
+from PIL import Image
+import numpy as np
+import shapely as shp
 
 def dissolve_by_attribute(in_path, dissolve_attribute, out_path=False):
 	''' 
@@ -136,7 +140,7 @@ def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
 	return df_final
 
 def clean_manual_classification(in_path, classification_col, out_path=False):
-	'''Generate a dissolved boundary file given of larger geometries after 
+	'''Generate a dissolved boundary file of larger geometries after 
 	being given a geodataframe with smaller geometries assigned to a value
 	designated by the classification column.
 
@@ -202,3 +206,108 @@ def clean_manual_classification(in_path, classification_col, out_path=False):
 		fm.save_shapefile(df, out_path)
 
 	return df
+
+def image_classification(shp_path, img_path, num_regions, num_colors=False, 
+	out_path=False):
+	'''Generate a dissolved boundary file of larger geometries according to
+	how the geometry is colored in a corresponding image of the same
+	geographic region.
+
+	The image should be georeferened to the boundary.
+
+	Also, the image should be cropped to the extents of the geometry. It is
+	usually better to do this by hand because the autocropping algorithm
+	sometimes stops because of a single pixel difference
+
+	If there exists a one noncontiguous larger shape, then the number of 
+	regions should be one greater becausue the algorithm will split
+	noncontiguous regions.
+
+	We limit the number of samples to be 500 per geometry for speed purposes
+
+	Arguments:
+		shp_path:
+			path to the shapefile the algorithm will be performed on
+
+		img_path:
+			path to the image we use for the classification. This should
+			already be cropped to the boundaries of the geometry. This can 
+			be performed with the function cropped_border_image
+
+		num_regions:
+			the number of regions that should remain at the end of the
+			algorithm. 
+
+		num_colors:
+			The number of colors to reduce the image to. Sometimes helps if
+			classification regions in the images are differently shades of the
+			same color within a region. Defaul is no reduction
+
+		out_path:
+			path to save final dataframe if applicable. Default will not save
+
+	Output:
+		df_classified
+			dataframe with geometries classified into regions
+		df
+			the original dataframe with color and region assignments
+	'''
+
+	# Load image and shapefile
+	img = Image.open(img_path)
+	if num_colors:
+		img = si.reduce_colors(img, num_colors)
+	img_arr = np.asarray(img)
+
+	df = fm.load_shapefile(shp_path)
+
+	# create a color series and region series in the dataframe
+	df['color'] = pd.Series(dtype=object)
+	df['region'] = pd.Series(dtype=object)
+
+	# Get the boundaries of the geodataframe
+	bounds = shp.ops.cascaded_union(list(df['geometry'])).bounds
+	shp_xlen = bounds[2] - bounds[0]
+	shp_ylen = bounds[3] - bounds[1]
+	shp_xmin = bounds[0]
+	shp_ymin = bounds[1]
+
+	# Assign each polygon and assign its most common color
+	for ix, row in df.iterrows():
+		poly = row['geometry']
+		df.at[ix, 'color'] = si.most_common_color(poly, img_arr, shp_xmin,
+												 shp_xlen, shp_ymin, shp_ylen,
+												 500)
+
+	# Assign each polygon with a certain color a region index
+	for ix, color in enumerate(df['color'].unique()):
+		df.loc[df['color'] == color, 'region'] = ix
+
+	# Get different region ids
+	regions = list(df['region'].unique())
+
+	# Create the classification dataframe
+	df_classified = pd.DataFrame(columns=['region', 'geometry'])
+
+	# Create classification geoemtries for each region
+	for ix, region in enumerate(regions):
+		df_region = df[df['region'] == region]
+		polys = list(df_region['geometry'])
+		df_classified.at[ix, 'geometry'] = shp.ops.cascaded_union(polys)
+		df_classified.at[ix, 'region'] = region
+
+	# Convert clasified dataframe into a geodataframe
+	df_classified = gpd.GeoDataFrame(df_classified, geometry='geometry')
+	
+	# # Split noncontiguous regions and merge fully contained regions
+	df_classified = sm.split_noncontiguous(df_classified)
+	df_classified = sm.merge_fully_contained(df_classified)
+
+	# # Merge regions until we have the correct number
+	df_classified = sm.merge_to_right_number(df_classified, num_regions)
+
+	# save file if necessary
+	if out_path:
+		fm.save_shapefile(df_classified, out_path)
+
+	return df_classified, df
