@@ -56,6 +56,7 @@ class TestBoundingFrame:
 			
 		frame(input_path, correct_path)
 
+
 	def test_noncontiguous_input(self):
 		'''Bounding frame around noncontiguous shapefile'''
 
@@ -67,5 +68,3 @@ class TestBoundingFrame:
 		correct_path = os.getcwd() + folder + correct_str
 
 		frame(input_path, correct_path)
-
-

@@ -10,16 +10,18 @@ from collections import Counter
 import numpy as np
 
 # import helper tools as if running from parent directory
-import helper_tools.file_management as fm
 import helper_tools.shp_calculations as sc
 
 
-def dissolve(df, dissolve_attribute):   
+def dissolve(df, dissolve_attribute):
     ''' Dissolves boundaries according to the dissolve_attribute (diss_att)
 
     Arguments:
-        in_path: geodataframe of shapefile to dissolve
-        dissolve_attribute: attribute to dissolve boundaries according to
+        in_path:
+            geodataframe of shapefile to dissolve
+
+        dissolve_attribute:
+            attribute to dissolve boundaries according to
 
     Output:
         Shapefile with the boundaries dissolved
@@ -30,7 +32,7 @@ def dissolve(df, dissolve_attribute):
     '''
     # Get unique values of dissolved attribute
     dissolve_names = list(df[dissolve_attribute].unique())
-    
+
     # Create dataframe for dissolved shapefile
     df_dissolve = pd.DataFrame(columns=[dissolve_attribute, 'geometry'])
 
@@ -48,15 +50,18 @@ def dissolve(df, dissolve_attribute):
 
     return gpd.GeoDataFrame(df_dissolve, geometry='geometry')
 
+
 def generate_bounding_frame(df):
     ''' Generates a bounding frame arouund the extents of a shapefile
-    
+
     Arguments:
-        df: geodataframe of shapefile to create bounding frame around
-        
+        df:
+            geodataframe of shapefile to create bounding frame around
+
     Output:
         Geometry of bounding frame (also saves shapefile)
-        frame_df: geodataframe to the bounding frame (only one geometry)
+        frame_df:
+            geodataframe to the bounding frame (only one geometry)
     '''
     # Calculate boundaries of the geodataframe using union of geometries
     # takes form (min_x, min_y, max_x, max_y)
@@ -67,15 +72,18 @@ def generate_bounding_frame(df):
     ymin = bounds[1]
     ymax = bounds[3]
     ylen = ymax-ymin
-    
+
     # Generate frame geometry. The multiplier of 10 is arbitrary. We just need
     # it to be large enough that when exporting in GIS over an image it is the
     # only color on the border of the image it is overlaid on top of
-    in_frame = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
-    out_frame = Polygon([(xmin-10*xlen, ymin-10*ylen),\
-                         (xmax+10*xlen, ymin-10*ylen),\
-                         (xmax+10*xlen, ymax+10*ylen),\
+    in_frame = Polygon([(xmin, ymin), (xmax, ymin),
+                        (xmax, ymax), (xmin, ymax)])
+
+    out_frame = Polygon([(xmin-10*xlen, ymin-10*ylen),
+                         (xmax+10*xlen, ymin-10*ylen),
+                         (xmax+10*xlen, ymax+10*ylen),
                          (xmin-10*xlen, ymax+10*ylen)])
+
     frame = out_frame.symmetric_difference(in_frame)
 
     # Convert frame polygon into GeoDataFrame
@@ -83,15 +91,23 @@ def generate_bounding_frame(df):
     frame_df['geometry'] = [frame]
     return frame_df
 
+
 def merge_fully_contained(df, geo_name='geometry', nbr_name='neighbors',
                           cols_to_add=[]):
     '''Merge geometries contained entirely by another geometry
 
     Arguments:
-        df: DataFrame
-        geo_name: column name for geometries in DataFrame
-        nbr_name: column name for neighbors in DataFrame
-        cols_to_add: attributes that should be combined when geometries are
+        df:
+            DataFrame
+
+        geo_name:
+            column name for geometries in DataFrame
+
+        nbr_name:
+            column name for neighbors in DataFrame
+
+        cols_to_add:
+            attributes that should be combined when geometries are
             merged
 
     Output:
@@ -129,7 +145,7 @@ def merge_fully_contained(df, geo_name='geometry', nbr_name='neighbors',
             # is equal to the neighbor. This demonstrates neighbor is contained
             if nbr_poly == nbr_poly.intersection(poly):
 
-                # To account for nested, we say neighbors of contained 
+                # To account for nested, we say neighbors of contained
                 # neighbors are possibly contained
                 for nbr_nbr in df.at[nbr, nbr_name]:
                     if nbr_nbr not in possibly_contained and nbr_nbr != ix:
@@ -154,14 +170,18 @@ def merge_fully_contained(df, geo_name='geometry', nbr_name='neighbors',
     # Drop contained geometries from the dataframe and return
     return df.drop(ix_to_drop).reset_index(drop=True)
 
+
 def split_noncontiguous(df, retain_cols=[]):
     '''Split noncontiguous geometries such that each contiguous section becomes
     its own geometry. We create a new geometry for each "piece" and drop the
     original geometry.
 
     Arguments:
-        df: df
-        retain_cols: attributes to retain the values of after the split
+        df:
+            df
+
+        retain_cols:
+            attributes to retain the values of after the split
 
     Output:
         dataframe without the noncontiguous geometries
@@ -196,15 +216,16 @@ def split_noncontiguous(df, retain_cols=[]):
 
     return df
 
+
 def merge_geometries(df, ixs_to_merge, cols_to_add=[]):
     '''Combine geoemtries using greedy method of greatest shared perimenter.
-    Adds in the order of greatest fraction of perimeter assigned. 
+    Adds in the order of greatest fraction of perimeter assigned.
 
-    Example: if geometry A has 50 percent of its perimeter assigned and 
+    Example: if geometry A has 50 percent of its perimeter assigned and
     geometry B has 40 percent of its perimeter assigned, then geometry A will
     be assigned before geometry B
 
-    Example: If geometry A needs to be merged, and geometry Ashareds 70 percent 
+    Example: If geometry A needs to be merged, and geometry Ashareds 70 percent
     of its perimeter with geometry B and 30 percent of its perimeter with
     geometry C, geometry A will be merged with geometry B
 
@@ -212,10 +233,15 @@ def merge_geometries(df, ixs_to_merge, cols_to_add=[]):
     neighbor geometry.
 
     Arguments:
-        df: DataFrame
-        ixs_to_merge: indices of geometries in the dataframe to merge with
+        df:
+            DataFrame
+
+        ixs_to_merge:
+            indices of geometries in the dataframe to merge with
             other geomerties
-        cols_to_add: attributes that should be combined when precincts are
+
+        cols_to_add:
+            attributes that should be combined when precincts are
             merged
 
     Output:
@@ -235,15 +261,16 @@ def merge_geometries(df, ixs_to_merge, cols_to_add=[]):
     ixs_to_merge = list(set(ixs_to_merge))
 
     # Set copy of indices to merge list in order to delete at end
-    del_ixs =  ixs_to_merge.copy()
+    del_ixs = ixs_to_merge.copy()
 
     # Keep merging geometries until the indices_to_merge list is empty
     while len(ixs_to_merge) > 0:
 
-        # find how much of each perimeter of each geometry isa ssigned for 
+        # find how much of each perimeter of each geometry isa ssigned for
         # each of the indices that we need to merge
         fractions = [sc.fraction_shared_perim(df.at[i, 'neighbors'],
-            ixs_to_merge, df.at[i, 'geometry'].length) for i in ixs_to_merge]
+                     ixs_to_merge, df.at[i, 'geometry'].length) for
+                     i in ixs_to_merge]
 
         # Find the index to the geometry that has the smallest fraction of its
         # perimeter assigned
@@ -278,8 +305,6 @@ def merge_geometries(df, ixs_to_merge, cols_to_add=[]):
         nbrs_of_merge_nbr.pop(orig_ix)
 
         # Fix shared perimeter values for each of the neighbors
-
-
 
         # iterate through each of the orig neighbors that isn't the merge_nbr
         orig_nbrs.pop(merge_nbr_ix)
@@ -320,14 +345,18 @@ def merge_geometries(df, ixs_to_merge, cols_to_add=[]):
 
     return df
 
+
 def merge_to_right_number(df, num_geometries, cols_to_add=[]):
     '''Reduce a shapefile to only have num_geometries geometries. Merges the
     smallest geometries into the neighbor with which it shares the largest
     perimeter. Uses the merge_geometries function.
 
     Arguments:
-        df: dataframe
-        num_geometries: number of geometries remaining after function completes
+        df:
+            dataframe
+
+        num_geometries:
+            number of geometries remaining after function completes
         cols_to_add: cols to add together
     '''
 

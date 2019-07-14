@@ -1,4 +1,5 @@
-import shutil, os
+import shutil
+import os
 import geopandas as gpd
 import helper_tools.shp_manipulation as sm
 import helper_tools.shp_calculations as sc
@@ -9,15 +10,22 @@ from PIL import Image
 import numpy as np
 import shapely as shp
 
+
 def dissolve_by_attribute(in_path, dissolve_attribute, out_path=False):
-	''' 
+	'''Remove boundaries according to attribute.
+
 	Dissolve boundaries for shapefile(s) according to a given attribute. we will
 	also check for contiguity after boundaries have been dissolved.
 
 	Arguments:
-		in_path: full path to input shapefile to be dissolved
-		out_path: full path to save created shapefile
-		disolve_attribute: attribute to dissolve boundaries by
+		in_path:
+			full path to input shapefile to be dissolved
+
+		out_path:
+			full path to save created shapefile
+
+		disolve_attribute:
+			attribute to dissolve boundaries by
 	'''
 	#  Generate dissolved shapefile
 	df = fm.load_shapefile(in_path)
@@ -32,18 +40,22 @@ def dissolve_by_attribute(in_path, dissolve_attribute, out_path=False):
 
 	return df
 
-def create_bounding_frame(in_path, out_path=False):
-	''' 
-	Create a bounding box around the extents of a shapefile. 
 
-	This will be used to overlay on top of a georeferenced image in GIS to allow for
-	automated cropping in the algorithm that converts converting precinct images to 
-	shapefiles. Will usually use a census block shapfile to generate this bounding
-	frame
+def create_bounding_frame(in_path, out_path=False):
+	'''
+	Create a bounding box around the extents of a shapefile.
+
+	This will be used to overlay on top of a georeferenced image in GIS to
+	allow for automated cropping in the algorithm that converts converting
+	precinct images to shapefiles. Will usually use a census block shapfile to
+	generate this bounding frame
 
 	Arguments:
-		in_path: full path to input shapefile to create bounding frame for
-		out_path: full path to save bounding frame shapefile
+		in_path:
+			full path to input shapefile to create bounding frame for
+
+		out_path:
+			full path to save bounding frame shapefile
 	'''
 	# Generate bounding frame and save
 	df = fm.load_shapefile(in_path)
@@ -54,11 +66,12 @@ def create_bounding_frame(in_path, out_path=False):
 
 	return df
 
-def disaggregate_file(shp_path, disaggregate_attr, direc_path, 
-	prefix = '', suffix=''):
+
+def disaggregate_file(shp_path, disaggregate_attr, direc_path, prefix='',
+					  suffix=''):
 	'''
-	Take a larger shapefile and disaggreagate it into smaller shapefiles 
-	according to an attribute. The directory and shapefile name will be 
+	Take a larger shapefile and disaggreagate it into smaller shapefiles
+	according to an attribute. The directory and shapefile name will be
 	prefix + disaggregate_attribute value + suffix.
 
 	NOTE: direc_path SHOULD NOT END WITH '/'
@@ -70,12 +83,21 @@ def disaggregate_file(shp_path, disaggregate_attr, direc_path,
 	shapefile. Loading in statewide census files takes a while
 
 	Arguments:
-		shp_path: path to shapefile to disaggregate
-		disaggregate_attr: attribute to disaggregate on
-		direc_path: path to directory to create subdirectory of smaller 
-		shapefiles for each unique value.
-		prefix: string to put in front name of smaller shapefiles
-		suffix: string to put behind name of smaller shapefiles
+		shp_path:
+			path to shapefile to disaggregate
+
+		disaggregate_attr:
+			attribute to disaggregate on
+
+		direc_path:
+			path to directory to create subdirectory of smaller
+			shapefiles for each unique value.
+
+		prefix:
+			string to put in front name of smaller shapefiles
+
+		suffix:
+			string to put behind name of smaller shapefiles
 	'''
 
 	# load shapefile
@@ -100,7 +122,7 @@ def disaggregate_file(shp_path, disaggregate_attr, direc_path,
 		# create shapefile with the correct attributes
 		df_attr = df[df[disaggregate_attr] == attr]
 		df_attr = gpd.GeoDataFrame(df_attr, geometry='geometry')
-		fm.save_shapefile(df_attr, subdirec + '/' + name + '.shp')
+		fm.save_shapefile(df_attr, subdirec + '/' + shp_name)
 
 
 def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
@@ -108,9 +130,14 @@ def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
 	Combine multiple shapefiles into a single shapefile
 
 	Arguments:
-		paths_to_merge: LIST of path strings of shapfiles to merge
-		out_path: path to save new shapefile
-		keep_cols: default -> 'all' meeans to keep all, otherwise this input 
+		paths_to_merge:
+			LIST of path strings of shapfiles to merge
+
+		out_path:
+			path to save new shapefile
+
+		keep_cols:
+			default -> 'all' meeans to keep all, otherwise this input
 			takes a LIST of which columns/attributes to keep
 
 	'''
@@ -123,7 +150,6 @@ def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
 		# Load and append current dataframe
 		df_current = fm.load_shapefile(path)
 		df_final = df_final.append(df_current, ignore_index=True, sort=True)
-
 
 	# reduce to only columns/attributes we are keeping
 	if keep_cols == 'all':
@@ -139,27 +165,31 @@ def merge_shapefiles(paths_to_merge, out_path=False, keep_cols='all'):
 
 	return df_final
 
+
 def clean_manual_classification(in_path, classification_col, out_path=False):
-	'''Generate a dissolved boundary file of larger geometries after 
+	'''Generate a dissolved boundary file of larger geometries after
 	being given a geodataframe with smaller geometries assigned to a value
 	designated by the classification column.
 
 	Will auto-assign unassigned geometries using the greedy shared perimeters
 	method.
 
-	Will also split non-contiguous geometries and merge fully contained 
+	Will also split non-contiguous geometries and merge fully contained
 	geometries
 
 	Usually used when a user has manually classified census blocks into
 	precincts and needs to clean up their work
 
 	Arguments:
-		in_path: path dataframe containing smaller geometries
+		in_path:
+			path dataframe containing smaller geometries
 
-		classification_col: name of colum in df that identifies which
+		classification_col:
+			name of colum in df that identifies which
 			larger "group" each smaller geometry belongs to.
 
-		out_path: path to save final dataframe file if applicable. Default
+		out_path:
+			path to save final dataframe file if applicable. Default
 			is false and will not save
 	'''
 
@@ -207,8 +237,9 @@ def clean_manual_classification(in_path, classification_col, out_path=False):
 
 	return df
 
-def image_classification(shp_path, img_path, num_regions, num_colors=False, 
-	out_path=False):
+
+def image_classification(shp_path, img_path, num_regions, num_colors=False,
+						 out_path=False):
 	'''Generate a dissolved boundary file of larger geometries according to
 	how the geometry is colored in a corresponding image of the same
 	geographic region.
@@ -219,7 +250,7 @@ def image_classification(shp_path, img_path, num_regions, num_colors=False,
 	usually better to do this by hand because the autocropping algorithm
 	sometimes stops because of a single pixel difference
 
-	If there exists a one noncontiguous larger shape, then the number of 
+	If there exists a one noncontiguous larger shape, then the number of
 	regions should be one greater becausue the algorithm will split
 	noncontiguous regions.
 
@@ -231,12 +262,12 @@ def image_classification(shp_path, img_path, num_regions, num_colors=False,
 
 		img_path:
 			path to the image we use for the classification. This should
-			already be cropped to the boundaries of the geometry. This can 
+			already be cropped to the boundaries of the geometry. This can
 			be performed with the function cropped_border_image
 
 		num_regions:
 			the number of regions that should remain at the end of the
-			algorithm. 
+			algorithm.
 
 		num_colors:
 			The number of colors to reduce the image to. Sometimes helps if
@@ -247,9 +278,10 @@ def image_classification(shp_path, img_path, num_regions, num_colors=False,
 			path to save final dataframe if applicable. Default will not save
 
 	Output:
-		df_classified
+		df_classified:
 			dataframe with geometries classified into regions
-		df
+
+		df:
 			the original dataframe with color and region assignments
 	'''
 
@@ -276,8 +308,8 @@ def image_classification(shp_path, img_path, num_regions, num_colors=False,
 	for ix, row in df.iterrows():
 		poly = row['geometry']
 		df.at[ix, 'color'] = si.most_common_color(poly, img_arr, shp_xmin,
-												 shp_xlen, shp_ymin, shp_ylen,
-												 500)
+												  shp_xlen, shp_ymin, shp_ylen,
+												  500)
 
 	# Assign each polygon with a certain color a region index
 	for ix, color in enumerate(df['color'].unique()):
@@ -298,7 +330,7 @@ def image_classification(shp_path, img_path, num_regions, num_colors=False,
 
 	# Convert clasified dataframe into a geodataframe
 	df_classified = gpd.GeoDataFrame(df_classified, geometry='geometry')
-	
+
 	# # Split noncontiguous regions and merge fully contained regions
 	df_classified = sm.split_noncontiguous(df_classified)
 	df_classified = sm.merge_fully_contained(df_classified)

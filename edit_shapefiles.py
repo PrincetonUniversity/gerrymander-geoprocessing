@@ -1,41 +1,54 @@
 import helper_tools.file_management as fm
+import numpy as np
 import shapely as shp
 import pandas as pd
-import numpy as np
+
 
 def transform_crs(shp_paths, crs='epsg:4269'):
-	'''
-	Update the coordinate refernce system for a set of shapefiles
+    '''
+    Update the coordinate refernce system for a set of shapefiles
 
-	Arguments:
-		shp_paths: LIST of paths to shapefiles to be edited
-		crs: the coordinate reference system to convert to. Default is above
+    Arguments:
+        shp_paths:
+            LIST of paths to shapefiles to be edited
 
-	Output:
-		None, but the original file will be edited and updated
-	'''
+        crs:
+            the coordinate reference system to convert to. Default is above
 
-	# Iterate over all paths
-	for path in shp_paths:
-		# load, add crs, and save
-		shp = fm.load_shapefile(path)
-		shp = fm.set_CRS(shp, crs)
-		fm.save_shapefile(shp, path)
+    Output:
+        None, but the original file will be edited and updated
+    '''
+
+    # Iterate over all paths
+    for path in shp_paths:
+        # load, add crs, and save
+        df = fm.load_shapefile(path)
+
+        df = fm.set_CRS(df, crs)
+        fm.save_shapefile(df, path)
+
 
 def remove_geometries(path_delete, save_path, path_reference, thresh):
 	'''	Delete geometries from a shapefile that does not have a percent area
 		intersetion above a inputted threshold.
 
 		Arguments:
-			path_delete: path to shapefile that we are editing (deleting 
+			path_delete:
+                path to shapefile that we are editing (deleting
 				shapes without enough intersection)
-			save_path: path to save edited shapefile after geometries have
+
+			save_path:
+                path to save edited shapefile after geometries have
 				been removed from the path_delete shapefile. If false, we will
 				not save
-			path_reference: path to shapefile we will be comparing the
+
+			path_reference:
+                path to shapefile we will be comparing the
 				intersection with. Intersections will be taken with respect
 				to the union of all of these geometries
-			thresh: fraction threshold required to keep a shape. If thresh is
+
+			thresh:
+                fraction threshold required to keep a shape. If thresh is
 				0.9 then any shape with an intersection ratio greater than or
 				equal to 0.9 will remain and anything below will be deleted
 
@@ -65,40 +78,50 @@ def remove_geometries(path_delete, save_path, path_reference, thresh):
 
 	return df_del
 
-def distribute_label(df_large, large_cols, df_small, small_cols=False, 
-        small_path=False):
+
+def distribute_label(df_large, large_cols, df_small, small_cols=False,
+                     small_path=False):
     ''' Take labels from a shapefile that has larger boundaries and interpolate
     said labels to shapefile with smaller boundaries. By smaller boundaries we
     just mean more fine geographic boundaries. (i.e. census blocks are smaller
     than counties)
 
-    We use the greatest area method. However, when no intersection occurs, we 
+    We use the greatest area method. However, when no intersection occurs, we
     simply use the nearest centroid.
 
     NOTE: By default interpolates a string type because it is a label
 
     Arguments:
 
-        df_large: larger shapefile giving the labels
-        large_cols: LIST of attributes from larger shp to interpolate to 
+        df_large:
+            larger shapefile giving the labels
+
+        large_cols:
+            LIST of attributes from larger shp to interpolate to
             smaller shp
-        df_small: smaller shapefile receiving the labels
-        small_cols: LIST of names for attributes given by larger columns.
+
+        df_small:
+            smaller shapefile receiving the labels
+
+        small_cols:
+            LIST of names for attributes given by larger columns.
             Default will be False, which means to use the same attribute names
-        small_path: path to save the new dataframe to
+
+        small_path:
+            path to save the new dataframe to
 
     Output:
     	edited df_small dataframe
     '''
 
     # handle default for small_cols
-    if small_cols == False:
+    if small_cols is False:
         small_cols = large_cols
 
     # Check that large and small cols have same number of attributes
     if len(small_cols) != len(large_cols):
         return False
-    
+
     if not set(large_cols).issubset(set(df_large.columns)):
         return False
 
@@ -123,19 +146,20 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
     for ix, row in df_small.iterrows():
         # Get potential matches
         small_poly = row['geometry']
-        potential_matches = [df_large.index[i] for i in 
-            list(si.intersection(small_poly.bounds))]
+        potential_matches = [df_large.index[i] for i in
+                             list(si.intersection(small_poly.bounds))]
 
         # Only keep matches that have intersections
-        matches = [m for m in potential_matches 
-            if df_large.at[m, 'geometry'].intersection(small_poly).area > 0]
+        matches = [m for m in potential_matches
+                   if df_large.at[m, 'geometry'].intersection(
+                   small_poly).area > 0]
 
         # No intersections. Find nearest centroid
         if len(matches) == 0:
             small_centroid = small_poly.centroid
             dist_series = df_large['centroid'].apply(lambda x:
-                small_centroid.distance(x))
-            large_ix = dist_series.idxmin()             
+                                                    small_centroid.distance(x))
+            large_ix = dist_series.idxmin()
 
         # One intersection. Only one match
         elif len(matches) == 1:
@@ -145,8 +169,9 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
         # of intersection
         else:
             area_df = df_large.loc[matches, :]
-            area_series = area_df['geometry'].apply(lambda x: 
-                x.intersection(small_poly).area / small_poly.area)
+            area_series = area_df['geometry'].apply(lambda x:
+                                                x.intersection(small_poly).area
+                                                / small_poly.area)
             large_ix = area_series.idxmax()
 
         # Update values for the small geometry
@@ -158,14 +183,15 @@ def distribute_label(df_large, large_cols, df_small, small_cols=False,
         fm.save_shapefile(df_small, small_path)
     return df_small
 
-def distribute_values(df_source, source_cols, df_target, target_cols=False, 
-    distribute_type='fractional', distribute_on='area', distribute_round=False, 
-    distribute_path=False):
+
+def distribute_values(df_source, source_cols, df_target, target_cols=False,
+                      distribute_type='fractional', distribute_on='area',
+                      distribute_round=False, distribute_path=False):
     '''
     Distribute attribute values of source geometries into the target geometries
 
     An example of this would be calculating population in generated precincts.
-    We would take census blocks (the source geometries) and sum up their 
+    We would take census blocks (the source geometries) and sum up their
     values into the precincts (target geometries). This is an example of
     aggregation
 
@@ -175,38 +201,53 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
     There are two types of aggregation. fractional or winner take all. For
     disaggregation, we will rarely if ever use winner take all
 
-    We can distribute values on area or on another attribute such as population.
+    We can distribute values on area or on another attribute such as population
     However, theis aggregation attribute must be in the target dataframe
 
     For source geometries that do not intersect with any large geometries, we
     find the nearest centroid
 
-    We give an option to round values and always retain totals. We als give an 
+    We give an option to round values and always retain totals. We als give an
     option to save the updated large shapefile if given a path
 
     Arguments:
-        df_source: source shapefile providing the values to distribute
-        source_cols: LIST of names of attributes in df_source to distribute
-        df_target: target shapefile receiving values being distributed
-        target_cols: LIST of names of attributes to create df_target. Elements
+        df_source:
+            source shapefile providing the values to distribute
+
+        source_cols:
+            LIST of names of attributes in df_source to distribute
+
+        df_target:
+            target shapefile receiving values being distributed
+
+        target_cols:
+            LIST of names of attributes to create df_target. Elements
             in this list correpond to elements in source_cols with the same
-            index. Default is just the name of the columns in the list 
+            index. Default is just the name of the columns in the list
             source_cols
-        distribute_type: 'fractional' or 'winner take all'. Self-explantory.
+
+        distribute_type:
+            'fractional' or 'winner take all'. Self-explantory.
             default is 'fractional'
-        distribute_on: Either area or an attribute in target_df to distribute
+
+        distribute_on:
+            Either area or an attribute in target_df to distribute
             values proportional to. For disaggregation usually do not want to
             use area as the distributing attribute.
-        distribute_round: whether to round values. If True, then we will
+
+        distribute_round:
+            whether to round values. If True, then we will
             round values such that we retain totals. If False, will simply
             leave distributed values as floats
-        distribute_path: path to save df_target to. Default is not to save
+
+        distribute_path:
+            path to save df_target to. Default is not to save
 
     Output:
         edited df_target dataframe'''
 
     # Handle default for target_cols
-    if target_cols == False:
+    if target_cols is False:
             target_cols = source_cols
 
     # Check that target_cols and source_cols have same number of attributes
@@ -220,9 +261,10 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
         return False
 
     # Check that the type is either fractional area or winner take all
-    if distribute_type != 'fractional' and distribute_type != 'winner take all':
-        print('incorrect aggregation type')
-        return False
+    if distribute_type != 'fractional':
+        if distribute_type != 'winner take all':
+            print('incorrect aggregation type')
+            return False
 
     # If we are not distributing on area check if the distributing attribute
     # is in the dataframe
@@ -260,18 +302,19 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
 
         # Get potential matches
         source_poly = row['geometry']
-        matches = [df_target.index[i] for i in 
-            list(si.intersection(source_poly.bounds))]
+        matches = [df_target.index[i] for i in
+                   list(si.intersection(source_poly.bounds))]
 
         # Only keep matches that have intersections
-        matches = [m for m in matches 
-            if df_target.at[m, 'geometry'].intersection(source_poly).area > 0]
+        matches = [m for m in matches
+                   if df_target.at[m, 'geometry'].intersection(
+                   source_poly).area > 0]
 
         # No intersections. Find nearest centroid
         if len(matches) == 0:
             source_centroid = source_poly.centroid
             dist_series = df_target['centroid'].apply(lambda x:
-                source_centroid.distance(x)) 
+                                                source_centroid.distance(x))
             frac_agg.at[dist_series.idxmin()] = 1
 
         # Only one intersecting geometry
@@ -285,7 +328,9 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
             # Aggregate on proper column
             if distribute_on == 'area':
                 frac_agg = agg_df['geometry'].apply(lambda x:
-                    x.intersection(source_poly).area / source_poly.area)
+                                                    x.intersection(
+                                                    source_poly).area /
+                                                    source_poly.area)
 
                 # Add proportion that does not intersect to the target geometry
                 # with the largest intersection
@@ -297,14 +342,15 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
                 agg_col_sum = agg_df[distribute_on].sum()
                 print(agg_col_sum)
                 frac_agg = agg_df[distribute_on].apply(lambda x:
-                    float(x) / agg_col_sum)
+                                                       float(x) / agg_col_sum)
 
         # Update value for target geometry depending on aggregate type
         for j, col in enumerate(target_cols):
             # Winner take all update
             if distribute_type == 'winner take all':
                 target_ix = frac_agg.idxmax()
-                df_target.at[target_ix, col] += df_source.at[ix, source_cols[j]]
+                df_target.at[target_ix, col] += df_source.at[ix,
+                                                             source_cols[j]]
 
             # Fractional update
             elif distribute_type == 'fractional':
