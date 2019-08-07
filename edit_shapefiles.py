@@ -349,14 +349,14 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
             # Winner take all update
             if distribute_type == 'winner take all':
                 target_ix = frac_agg.idxmax()
-                df_target.at[target_ix, col] += df_source.at[ix,
+                df_target.loc[target_ix, col] += df_source.loc[ix,
                                                              source_cols[j]]
 
             # Fractional update
             elif distribute_type == 'fractional':
                 # Add the correct fraction
                 for ix2, val in frac_agg.iteritems():
-                    df_target.at[ix2, col] += df_source.at[
+                    df_target.loc[ix2, col] += df_source.loc[
                         ix, source_cols[j]] * val
 
                 # Round if necessary
@@ -372,7 +372,7 @@ def distribute_values(df_source, source_cols, df_target, target_cols=False,
                     # have the highest decimal value
                     df_target[col] = round_down
                     for ix3 in round_up_ix:
-                        df_target.at[ix3, col] += 1
+                        df_target.loc[ix3, col] += 1
 
     # Set column value as integer
     if distribute_round:
