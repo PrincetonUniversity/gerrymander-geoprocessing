@@ -210,7 +210,9 @@ def real_rook_contiguity(df, geo_id='geometry', nbr_id='neighbors',
         dataframe with neighbors list for each attribute in a new column
         called nbr_id (default name is 'neighbors')
     '''
-
+    # Reset index
+    df = df.reset_index(drop=True)
+    
     # Obtain queen continuity for each shape in the dataframe. We will remove
     # all point contiguity. Pysal rook contiguity sometimes assumes lines
     # with small lines are points
